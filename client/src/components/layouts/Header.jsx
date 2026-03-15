@@ -80,7 +80,7 @@ const Header = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-10 flex flex-col lg:flex-row justify-between items-center">
                     <ul className="flex flex-col lg:flex-row w-full lg:w-auto uppercase font-bold text-sm tracking-wide">
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Home <ChevronDown size={14} />
+                            Home 
                         </li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
                             Our Team <ChevronDown size={14} />
