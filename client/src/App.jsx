@@ -1,13 +1,12 @@
+import { ClerkProvider } from '@clerk/clerk-react'
 import './App.css'
-import Footer from './components/layouts/Footer'
-import Header from './components/layouts/Header'
 import AppRoute from './routes/AppRoute'
 
 function App() {
     return (
-        <div>
+        <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
             <AppRoute />
-        </div>
+        </ClerkProvider>
     )
 }
 
