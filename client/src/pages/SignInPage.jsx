@@ -1,4 +1,6 @@
+import axios from 'axios';
 import React, { useState } from 'react';
+import { useNavigate } from "react-router-dom";
 
 export default function SignInPage() {
     const [credentials, setCredentials] = useState({
@@ -7,6 +9,7 @@ export default function SignInPage() {
     });
     const [errors, setErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
+    const navigate = useNavigate()
 
     const handleChange = (e) => {
         setCredentials({ ...credentials, [e.target.name]: e.target.value });
@@ -25,15 +28,28 @@ export default function SignInPage() {
         if (!credentials.password) {
             newErrors.password = 'Please enter your password.';
         }
-        
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (validateForm()) {
-            console.log("Đăng nhập hợp lệ với:", credentials);
+        if (!validateForm()) {
+            return
+        }
+
+        try {
+            await axios.post(
+                "http://localhost:5000/auth/signin",
+                credentials,
+                {
+                    withCredentials: true // ✅ bắt buộc
+                }
+            );
+            navigate('/')
+        } catch (error) {
+            console.log(error)
         }
     };
 
@@ -41,7 +57,7 @@ export default function SignInPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
             {/* Đã thêm rounded-2xl để bo góc khung lớn */}
             <div className="flex w-full max-w-[1100px] h-[700px] bg-white shadow-2xl overflow-hidden rounded-2xl">
-                
+
                 {/* Cột trái: Brand Identity */}
                 <div className="hidden md:flex md:w-1/2 relative">
                     <img

@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { useRef } from 'react';
-import axios from 'axios'
+import React, { useState, useRef } from 'react';
+import axios from 'axios';
+import OtpModal from '../components/modals/OtpModal';
 
 export default function SignUpPage() {
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [errors, setErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false); // Để hiện UI loading
+    const [loading, setLoading] = useState(false);
+    
+    // State quản lý việc hiển thị modal OTP
+    const [showOtpModal, setShowOtpModal] = useState(false);
 
-    // Sử dụng useRef để chặn người dùng click liên tục (spam)
+    // Tránh spam click
     const isSubmitting = useRef(false);
 
     const handleChange = (e) => {
@@ -31,6 +34,7 @@ export default function SignUpPage() {
         return Object.keys(newErrors).length === 0;
     };
 
+    // BƯỚC 1: Gọi API yêu cầu OTP
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -41,22 +45,20 @@ export default function SignUpPage() {
             setLoading(true);
 
             try {
-                const response = await axios.post(
-                    "http://localhost:5000/auth/signup",
-                    formData,
+                // Gọi API gửi OTP thay vì signup trực tiếp
+                await axios.post(
+                    "http://localhost:5000/auth/request-otp",
+                    formData
                 );
 
-                const data = response.data;
+                // Nếu gửi email thành công, mở Modal nhập OTP
+                setShowOtpModal(true);
 
-                alert("Success: " + data.message);
-
-                // 👉 reset form nếu muốn
-                // setFormData({ name: '', email: '', password: '' });
             } catch (error) {
                 if (error.response) {
-                    alert("Error: " + error.response.data.message);
+                    alert("Lỗi: " + error.response.data.message);
                 } else {
-                    alert("Network error");
+                    alert("Lỗi kết nối mạng");
                 }
             } finally {
                 isSubmitting.current = false;
@@ -65,9 +67,36 @@ export default function SignUpPage() {
         }
     };
 
+    // BƯỚC 2: Gọi API đăng ký (kèm thông tin + OTP)
+    const handleVerifyOtp = async (otpCode) => {
+        setLoading(true);
+        try {
+            const response = await axios.post(
+                "http://localhost:5000/auth/signup",
+                { ...formData, otp: otpCode } // Gửi kèm cả form data và OTP code
+            );
+
+            alert("Đăng ký thành công: " + response.data.message);
+            
+            // Tắt Modal và reset form
+            setShowOtpModal(false);
+            setFormData({ name: '', email: '', password: '' });
+            
+            // TODO: Bạn có thể thêm lệnh chuyển trang (navigate('/login')) ở đây
+
+        } catch (error) {
+            if (error.response) {
+                alert("Lỗi xác thực: " + error.response.data.message);
+            } else {
+                alert("Lỗi kết nối mạng");
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-10 px-4">
-            {/* Đã thêm rounded-2xl để bo góc khung lớn */}
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-10 px-4 relative">
             <div className="flex w-full max-w-[1100px] bg-white shadow-2xl overflow-hidden flex-row-reverse rounded-2xl">
 
                 {/* Cột phải: Hình ảnh & Overlay */}
@@ -84,6 +113,7 @@ export default function SignUpPage() {
                     </div>
                 </div>
 
+                {/* Cột trái: Form */}
                 <div className="w-full md:w-1/2 p-10 bg-white">
                     <div className="max-w-md mx-auto">
                         <h1 className="text-2xl font-bold text-center text-gray-800 uppercase mb-8">Create Account</h1>
@@ -91,22 +121,22 @@ export default function SignUpPage() {
                             {/* Input Name */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
-                                <input name="name" type="text" placeholder="Enter your name" className={`w-full px-4 py-3 rounded-lg border outline-none transition text-sm ${errors.name ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
+                                <input name="name" type="text" placeholder="Enter your name" value={formData.name} className={`w-full px-4 py-3 rounded-lg border outline-none transition text-sm ${errors.name ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
                                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                             </div>
 
                             {/* Input Email */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email</label>
-                                <input name="email" type="email" placeholder="example@mail.com" className={`w-full px-4 py-3 rounded-lg border outline-none transition text-sm ${errors.email ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
+                                <input name="email" type="email" placeholder="example@mail.com" value={formData.email} className={`w-full px-4 py-3 rounded-lg border outline-none transition text-sm ${errors.email ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
                                 {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                             </div>
 
-                            {/* Input Password với Toggle */}
+                            {/* Input Password */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Password</label>
                                 <div className="relative">
-                                    <input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" className={`w-full px-4 py-3 pr-10 rounded-lg border outline-none transition text-sm ${errors.password ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
+                                    <input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} className={`w-full px-4 py-3 pr-10 rounded-lg border outline-none transition text-sm ${errors.password ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
                                     <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={() => setShowPassword(!showPassword)}>
                                         {showPassword ? "Hide" : "Show"}
                                     </button>
@@ -119,13 +149,23 @@ export default function SignUpPage() {
                                 disabled={loading}
                                 className={`w-full py-3 rounded-lg text-white font-bold uppercase text-xs transition shadow-md ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1e5aa0] hover:bg-[#164a85]'}`}
                             >
-                                {loading ? "Processing..." : "Continue ›"}
+                                {loading && !showOtpModal ? "Đang gửi OTP..." : "Continue ›"}
                             </button>
                         </form>
                     </div>
                 </div>
 
             </div>
+
+            {/* Hiển thị Modal OTP khi showOtpModal = true */}
+            {!showOtpModal && (
+                <OtpModal 
+                    email={formData.email} 
+                    onVerify={handleVerifyOtp} 
+                    onCancel={() => setShowOtpModal(false)} 
+                />
+            )}
+            
         </div>
     );
 }
