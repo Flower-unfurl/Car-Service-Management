@@ -4,7 +4,7 @@ import Layout from "../components/layouts/Layout"
 import ServiceDetail from "../pages/ServiceDetail"
 import SignInPage from "../pages/SignInPage"
 import SignUpPage from "../pages/SignupPage"
-
+import CreateOrder from "../pages/CreateOrder"
 
 function AppRoute() {
     return (
@@ -16,6 +16,7 @@ function AppRoute() {
             <Route>
                 <Route path="/signin/*" element={<SignInPage />} />
                 <Route path="signup/*" element={<SignUpPage />} />
+                <Route path="order/*" element={<CreateOrder />} />
             </Route>
         </Routes>
     )
