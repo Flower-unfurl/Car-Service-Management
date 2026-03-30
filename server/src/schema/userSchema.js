@@ -10,7 +10,8 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ["USER", "ADMIN"],
         default: "USER"
-    }
+    },
+    refreshToken: String
 }, { 
     timestamps: true,
     collection: "User" // 👈 thêm dòng này
