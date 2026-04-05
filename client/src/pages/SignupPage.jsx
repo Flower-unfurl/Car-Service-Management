@@ -158,7 +158,7 @@ export default function SignUpPage() {
             </div>
 
             {/* Hiển thị Modal OTP khi showOtpModal = true */}
-            {!showOtpModal && (
+            {showOtpModal && (
                 <OtpModal 
                     email={formData.email} 
                     onVerify={handleVerifyOtp} 

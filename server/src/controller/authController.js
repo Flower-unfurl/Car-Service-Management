@@ -1,8 +1,19 @@
 const authService = require("../service/authService");
 const emailUtils = require("../util/emailUtils");
 const jwt = require("jsonwebtoken")
+const User = require("../schema/userSchema");
 
 const otpStore = new Map();
+
+const getUsers = async (req, res) => {
+    try {
+        const users = await User.find()
+        console.log(users)
+        res.send(users)
+    } catch (error) {
+        console.log(error)
+    }
+}
 
 const requestOtp = async (req, res) => {
     try {
@@ -130,5 +141,6 @@ const signIn = async (req, res) => {
 module.exports = {
     requestOtp,
     signUp,
-    signIn
+    signIn,
+    getUsers
 };
