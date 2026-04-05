@@ -1,20 +1,21 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    service: "gmail",
-    host: process.env.SmtpServer,
+    host: process.env.MailHost,
     port: process.env.Port,
-    secure: true, // dùng port 465 thì secure là true
     auth: {
-        user: process.env.SenderEmail,
-        pass: process.env.Password
+        user: process.env.UserName,
+        pass: process.env.Password,
     },
 });
 
 const emailUtils = {
     // Hàm tạo mã OTP ngẫu nhiên
     generateOTP: (length = 6) => {
-        return Math.floor(Math.pow(10, length - 1) + Math.random() * 9 * Math.pow(10, length - 1)).toString();
+        return Math.floor(
+            Math.pow(10, length - 1) +
+                Math.random() * 9 * Math.pow(10, length - 1),
+        ).toString();
     },
 
     // Hàm gửi email
