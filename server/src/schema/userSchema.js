@@ -14,7 +14,7 @@ const userSchema = new mongoose.Schema({
     refreshToken: String
 }, { 
     timestamps: true,
-    collection: "User" // 👈 thêm dòng này
+    collection: "users" // 👈 thêm dòng này
 });
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model("users", userSchema);
