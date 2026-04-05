@@ -9,3 +9,5 @@ class ErrorException extends Error {
         }
     }
 }
+
+module.exports = ErrorException

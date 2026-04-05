@@ -6,13 +6,13 @@ const {
     updateService,
     deleteService
 } = require("../controller/serviceController");
-const { authToken } = require("../middleware/authMiddleware");
+const { authToken, authRole } = require("../middleware/authMiddleware");
 
 const serviceRoute = express.Router();
 
-serviceRoute.use(authToken)
+// serviceRoute.use(authToken)
 
-serviceRoute.get("/", getServices);
+serviceRoute.get("/", authRole("CUSTOMER"), getServices);
 serviceRoute.get("/:id", getServiceById);
 serviceRoute.post("/", createService);
 serviceRoute.put("/:id", updateService);

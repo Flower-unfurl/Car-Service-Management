@@ -4,6 +4,7 @@ const {
     verifyToken,
     decodeToken
 } = require("../util/tokenUtils");
+const ErrorException = require("../util/errorException");
 
 const authToken = async (req, res, next) => {
     const token = req.cookies?.accessToken;
@@ -62,7 +63,7 @@ const authToken = async (req, res, next) => {
         });
 
         req.user = decodedExpired;
-console.log("Ok")
+
         return next();
 
     } catch (error) {
@@ -72,6 +73,26 @@ console.log("Ok")
     }
 };
 
+
+const authRole = (...allowedRoles) => {
+    return (req, res, next) => {
+        // 🔥 Check login trước
+        if (!req.user) {
+            return next(new ErrorException(401, "Unauthorized"));
+        }
+
+        // 🔥 Check role
+        if (!allowedRoles.includes(req.user.role)) {
+            return next(new ErrorException(403, "Access denied!"));
+        }
+
+        next();
+    };
+};
+
+
+
 module.exports = {
-    authToken
+    authToken,
+    authRole
 };

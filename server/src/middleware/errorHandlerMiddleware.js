@@ -1,4 +1,4 @@
-const errorException = (err, req, res, next) => {
+const errorHandlerMiddleware = (err, req, res, next) => {
     console.log("Error: ", err)
 
     const defaultMessage = "Something went wrong! Please try again!"
@@ -10,4 +10,4 @@ const errorException = (err, req, res, next) => {
     return res.status(statusCode).json({ message: message })
 }
 
-module.exports = errorException
+module.exports = errorHandlerMiddleware
