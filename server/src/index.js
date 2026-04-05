@@ -7,6 +7,7 @@ const http = require("http")
 
 const serviceRoute = require("./route/serviceRoute.js")
 const authRoute = require("./route/authRoute.js")
+const errorHandlerMiddleware = require("./middleware/errorHandlerMiddleware.js")
 
 dotenv.config()
 
@@ -23,7 +24,7 @@ connectDB().then(() => {
     app.use("/auth", authRoute)
     app.use("/service", serviceRoute)
 
-    //   app.use(errorException)
+    app.use(errorHandlerMiddleware)
 
     server.listen(port, () => {
         console.log(`🚀 Server running at http://localhost:${port}`)
