@@ -4,9 +4,9 @@ import AppRoute from './routes/AppRoute'
 
 function App() {
     return (
-        <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
+        // <ClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
             <AppRoute />
-        </ClerkProvider>
+        // </ClerkProvider>
     )
 }
 
