@@ -1,18 +1,17 @@
 import { Routes, Route } from "react-router-dom"
+
 import Home from "../pages/home"
 import Layout from "../components/layouts/Layout"
 import ServiceDetail from "../pages/ServiceDetail"
 import SignInPage from "../pages/SignInPage"
-import SignUpPage from "../pages/SignupPage"
+import SignUpPage from "../pages/SignupPage
+import ForgotPasswordPage from "../pages/ForgotPasswordPage"
 import AdminBookingList from '../pages/AdminBookingList';
 import BookingPage from '../pages/BookingPage';
 import LookupPage from '../pages/LookupPage';
 import StaffVehicleEntry from "../pages/StaffVehicleEntry"
 import AdminZoneManagement from "../pages/AdminZoneManagement"
 import MaterialList from "../pages/Materials/MaterialList"
-
-
-
 
 function AppRoute() {
     return (
@@ -29,7 +28,8 @@ function AppRoute() {
             </Route >
             <Route>
                 <Route path="/signin/*" element={<SignInPage />} />
-                <Route path="signup/*" element={<SignUpPage />} />
+                <Route path="/signup/*" element={<SignUpPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             </Route>
         </Routes>
     )
