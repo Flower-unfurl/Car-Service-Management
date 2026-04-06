@@ -4,6 +4,7 @@ import {
     Phone, Mail, MapPin, Clock, Search,
     Facebook, Twitter, Instagram, ChevronDown, Menu, X
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -83,7 +84,7 @@ const Header = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-10 flex flex-col lg:flex-row justify-between items-center">
                     <ul className="flex flex-col lg:flex-row w-full lg:w-auto uppercase font-bold text-sm tracking-wide">
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Home 
+                            Home
                         </li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
                             Our Team <ChevronDown size={14} />
@@ -94,8 +95,16 @@ const Header = () => {
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
                             Services <ChevronDown size={14} />
                         </li>
+                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400" onClick={() => window.location.href = '/booking'}>Đặt lịch</li>
+                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400" onClick={() => window.location.href = '/lookup'}>Tra cứu</li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">Blog</li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">Contact</li>
+                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">
+                            <Link to="/admin/zones">ADMIN ZONES</Link>
+                        </li>
+                        <li className="py-4 px-6 bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
+                            <Link to="/staff/entry">VEHICLE ENTRY</Link>
+                        </li>
                     </ul>
 
                     <div className="hidden lg:block py-4 px-4 relative">
