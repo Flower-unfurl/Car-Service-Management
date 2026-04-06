@@ -7,6 +7,11 @@ import SignUpPage from "../pages/SignupPage"
 import AdminBookingList from '../pages/AdminBookingList';
 import BookingPage from '../pages/BookingPage';
 import LookupPage from '../pages/LookupPage';
+import StaffVehicleEntry from "../pages/StaffVehicleEntry"
+import AdminZoneManagement from "../pages/AdminZoneManagement"
+import MaterialList from "../pages/Materials/MaterialList"
+
+
 
 
 function AppRoute() {
@@ -18,6 +23,9 @@ function AppRoute() {
                 <Route path="/booking" element={<BookingPage />} />
                 <Route path="/lookup" element={<LookupPage />} />
                 <Route path="/admin/bookings" element={<AdminBookingList />} />
+                <Route path="/staff/entry" element={<StaffVehicleEntry />} />
+                <Route path="/admin/zones" element={<AdminZoneManagement />} />
+                <Route path="/materials" element={<MaterialList />} />
             </Route >
             <Route>
                 <Route path="/signin/*" element={<SignInPage />} />

@@ -3,6 +3,7 @@ import {
     Phone, Mail, MapPin, Clock, Search,
     Facebook, Twitter, Instagram, ChevronDown, Menu, X
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -95,6 +96,12 @@ const Header = () => {
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400" onClick={() => window.location.href = '/lookup'}>Tra cứu</li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">Blog</li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">Contact</li>
+                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">
+                            <Link to="/admin/zones">ADMIN ZONES</Link>
+                        </li>
+                        <li className="py-4 px-6 bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
+                            <Link to="/staff/entry">VEHICLE ENTRY</Link>
+                        </li>
                     </ul>
 
                     <div className="hidden lg:block py-4 px-4 cursor-pointer hover:bg-blue-700">
