@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Phone, Mail, MapPin, Clock, Search,
-    Facebook, Twitter, Instagram, ChevronDown, Menu, X
+    Facebook, Twitter, Instagram, ChevronDown, Menu, X, Settings
 } from 'lucide-react';
 
 const Header = () => {
@@ -80,7 +81,7 @@ const Header = () => {
                 <div className="max-w-7xl mx-auto px-4 md:px-10 flex flex-col lg:flex-row justify-between items-center">
                     <ul className="flex flex-col lg:flex-row w-full lg:w-auto uppercase font-bold text-sm tracking-wide">
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Home 
+                            <Link to="/">Home</Link>
                         </li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
                             Our Team <ChevronDown size={14} />
@@ -92,7 +93,11 @@ const Header = () => {
                             Services <ChevronDown size={14} />
                         </li>
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">Blog</li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">Contact</li>
+                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">Contact</li>
+                        <li className="py-4 px-4 bg-blue-700 hover:bg-blue-800 cursor-pointer flex items-center gap-2">
+                            <Settings size={16} />
+                            <Link to="/operations">Vận hành</Link>
+                        </li>
                     </ul>
 
                     <div className="hidden lg:block py-4 px-4 cursor-pointer hover:bg-blue-700">
