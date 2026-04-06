@@ -53,7 +53,7 @@ const ServiceCard = ({ service }) => {
 
                 {/* 3. Nút Read More (Làm nhỏ padding và text size) */}
                 <button
-                    onClick={() => navigate(`/services/${service.serviceName}`)}
+                    onClick={() => navigate(`/services/${service._id}`)}
                     className={`cursor-pointer w-full py-2 px-4 border-1 font-bold uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2
                        border-gray-200 text-[#1e5aa0] group-hover:bg-[#1e5aa0] group-hover:text-white group-hover:border-[#1e5aa0]`}
                 >

@@ -252,6 +252,78 @@ const signIn = async (req, res, next) => {
     }
 };
 
+const getMe = async (req, res, next) => {
+    try {
+        const token = req.cookies?.accessToken;
+
+        // Nếu không có token, trả về null ngay lập tức (không ném lỗi)
+        if (!token) {
+            return res.status(200).json({ user: null });
+        }
+
+        let userId, role;
+
+        // 1. Thử verify access token còn hạn
+        const decoded = verifyToken(token);
+
+        if (decoded) {
+            userId = decoded._id;
+            role = decoded.role;
+        } else {
+            // 2. Access token hết hạn → decode để lấy _id
+            const decodedExpired = decodeToken(token);
+            
+            // Nếu token không hợp lệ (sai format, fake), trả về null
+            if (!decodedExpired) {
+                return res.status(200).json({ user: null });
+            }
+
+            // 3. Lấy và kiểm tra refresh token từ DB
+            const refreshToken = await authService.getRefreshToken(decodedExpired._id);
+            
+            // Nếu không có refresh token hoặc refresh token hết hạn
+            if (!refreshToken || !verifyToken(refreshToken)) {
+                return res.status(200).json({ user: null });
+            }
+
+            // 4. Cấp access token mới nếu mọi thứ hợp lệ
+            const newAccessToken = generateAccessToken(decodedExpired._id, decodedExpired.role);
+            res.cookie("accessToken", newAccessToken, {
+                httpOnly: true,
+                sameSite: "lax",
+                secure: process.env.NODE_ENV === "production", // Khuyên dùng cho thực tế
+                maxAge: 15 * 60 * 1000
+            });
+
+            userId = decodedExpired._id;
+        }
+
+        // 5. Lấy thông tin user từ DB
+        const user = await authService.findUserById(userId);
+        
+        // Nếu không tìm thấy user trong DB (user đã bị xóa)
+        if (!user) {
+            return res.status(200).json({ user: null });
+        }
+
+        // 6. Trả về thông tin user thành công
+        return res.status(200).json({
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        // Chỉ dùng next(error) cho các lỗi hệ thống (DB down, lỗi code...)
+        // Vẫn nên trả về null để client xử lý mượt mà
+        console.error("Error in getMe:", error);
+        res.status(200).json({ user: null });
+    }
+};
+
 module.exports = {
     getUsers,
     requestOtp,
@@ -260,5 +332,6 @@ module.exports = {
     logout,
     requestResetOtp,
     verifyResetOtp,
-    resetPassword
+    resetPassword,
+    getMe
 };
