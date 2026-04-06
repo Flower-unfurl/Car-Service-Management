@@ -1,11 +1,11 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    host: process.env.MailHost,
-    port: process.env.Port,
+    host: process.env.MAILHOST,
+    port: process.env.MAILPORT,
     auth: {
-        user: process.env.UserName,
-        pass: process.env.Password,
+        user: process.env.MAILNAME,
+        pass: process.env.MAILPASSWORD,
     },
 });
 
@@ -14,14 +14,14 @@ const emailUtils = {
     generateOTP: (length = 6) => {
         return Math.floor(
             Math.pow(10, length - 1) +
-                Math.random() * 9 * Math.pow(10, length - 1),
+            Math.random() * 9 * Math.pow(10, length - 1),
         ).toString();
     },
 
     // Hàm gửi email
     sendOTPEmail: async (toEmail, otp) => {
         const mailOptions = {
-            from: '"Car Service Support" <your-email@gmail.com>',
+            from: '"Car Service Support" <[EMAIL_ADDRESS]>',
             to: toEmail,
             subject: "Mã xác thực đăng ký tài khoản (OTP)",
             html: `
