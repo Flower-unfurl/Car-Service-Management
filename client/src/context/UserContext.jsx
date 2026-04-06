@@ -7,7 +7,6 @@ export function UserProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true); // true khi đang kiểm tra session
 
-    // Kiểm tra session khi app khởi động (refresh page vẫn giữ login)
     useEffect(() => {
         axios
             .get("http://localhost:5000/auth/me", { withCredentials: true })

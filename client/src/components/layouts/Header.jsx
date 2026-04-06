@@ -1,24 +1,53 @@
-import React, { useState } from 'react';
-import { useUser } from '../../hooks/UseUser';
+import React, { useEffect, useState } from "react";
+import { useUser } from "../../hooks/UseUser";
 import {
-    Phone, Mail, MapPin, Clock, Search,
-    Facebook, Twitter, Instagram, ChevronDown, Menu, X
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+    Phone,
+    Mail, // Bạn đang import Mail nhưng chưa dùng, có thể cân nhắc xóa hoặc thêm vào UI sau
+    MapPin,
+    Clock,
+    Search, // Bạn đang import Search nhưng chưa dùng
+    Facebook,
+    Twitter,
+    Instagram,
+    ChevronDown,
+    Menu,
+    X,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import axios from "axios";
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { user, logout, loading } = useUser();
+    const [services, setServices] = useState([]);
+    const [serviceDropdownOpen, setServiceDropdownOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+
+    useEffect(() => {
+        const fetchDropdownData = async () => {
+            try {
+                const res = await axios.get("http://localhost:5000/service/dropdown");
+                console.log(res.data.data)
+                if (res.data.success) {
+                    setServices(res.data.data);
+                }
+            } catch (err) {
+                console.error("Lỗi fetch services:", err);
+            }
+        };
+        fetchDropdownData();
+    }, []);
 
     return (
         <header className="mx-auto font-sans">
             {/* 1. Top bar: Socials & Call to action */}
-            <div className='bg-gray-100 mx-auto'>
+            <div className="bg-gray-100 mx-auto">
                 <div className="w-[75%] mx-auto py-2 px-4 md:px-10 flex justify-between items-center text-xs text-gray-600">
                     <div className="flex items-center gap-2">
                         <Clock size={14} className="text-blue-600" />
-                        <span>Call us today and make an appointment: +1 522-356-7800</span>
+                        <span>
+                            Call us today and make an appointment: +1 522-356-7800
+                        </span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-4">
@@ -33,11 +62,11 @@ const Header = () => {
             {/* 2. Middle bar: Logo & Contact Info */}
             <div className="w-[75%] mx-auto bg-white py-6 px-4 md:px-10 flex flex-wrap justify-between items-center">
                 {/* Logo */}
-                <div className="text-3xl font-black text-[#1e5aa0] tracking-tighter">
+                <Link to="/" className="text-3xl font-black text-[#1e5aa0] tracking-tighter">
                     AUTOREPAIR
-                </div>
+                </Link>
 
-                {/* Info Blocks (Responsive: Ẩn trên mobile nhỏ, hiện trên tablet trở lên) */}
+                {/* Info Blocks */}
                 <div className="hidden lg:flex items-center gap-8">
                     <div className="flex items-center gap-3">
                         <div className="bg-blue-100 p-2 rounded-full">
@@ -79,37 +108,71 @@ const Header = () => {
                 </button>
             </div>
 
-            {/* 3. Navigation Bar (Màu xanh chủ đạo) */}
-            <nav className={`w-[75%] mx-auto bg-[#1e5aa0] text-white transition-all duration-300 ${isMenuOpen ? 'block' : 'hidden lg:block'}`}>
+            {/* 3. Navigation Bar */}
+            <nav className={`w-[75%] mx-auto bg-[#1e5aa0] text-white transition-all duration-300 ${isMenuOpen ? "block" : "hidden lg:block"}`}>
                 <div className="max-w-7xl mx-auto px-4 md:px-10 flex flex-col lg:flex-row justify-between items-center">
                     <ul className="flex flex-col lg:flex-row w-full lg:w-auto uppercase font-bold text-sm tracking-wide">
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Home
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/" className="flex items-center gap-1 py-4 px-4 w-full">Home</Link>
                         </li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Our Team <ChevronDown size={14} />
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/team" className="flex items-center gap-1 py-4 px-4 w-full">Our Team <ChevronDown size={14} /></Link>
                         </li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Works <ChevronDown size={14} />
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/works" className="flex items-center gap-1 py-4 px-4 w-full">Works <ChevronDown size={14} /></Link>
                         </li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 flex items-center gap-1">
-                            Services <ChevronDown size={14} />
+                        
+                        {/* Services Dropdown */}
+                        <li
+                            className="relative hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 group"
+                            onMouseEnter={() => setServiceDropdownOpen(true)}
+                            onMouseLeave={() => setServiceDropdownOpen(false)}
+                            onClick={() => setServiceDropdownOpen(!serviceDropdownOpen)} // Hỗ trợ mobile
+                        >
+                            <div className="flex items-center gap-1 py-4 px-4 w-full">
+                                Services <ChevronDown size={14} />
+                            </div>
+                            
+                            {serviceDropdownOpen && (
+                                <ul className="absolute top-full left-0 w-48 bg-white text-gray-800 shadow-xl z-[60] border-t-2 border-orange-500">
+                                    {services.map((item) => (
+                                        <li key={item._id} className="hover:bg-gray-100 border-b border-gray-100">
+                                            <Link
+                                                to={`/services/${item._id}`}
+                                                className="block px-4 py-3 text-sm font-medium capitalize"
+                                            >
+                                                {item.serviceName}
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400" onClick={() => window.location.href = '/booking'}>Đặt lịch</li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400" onClick={() => window.location.href = '/lookup'}>Tra cứu</li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">Blog</li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">Contact</li>
-                        <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">
-                            <Link to="/admin/zones">ADMIN ZONES</Link>
+
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/booking" className="block py-4 px-4 w-full">Đặt lịch</Link>
                         </li>
-                        <li className="py-4 px-6 bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
-                            <Link to="/staff/entry">VEHICLE ENTRY</Link>
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/lookup" className="block py-4 px-4 w-full">Tra cứu</Link>
+                        </li>
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/blog" className="block py-4 px-4 w-full">Blog</Link>
+                        </li>
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/contact" className="block py-4 px-4 w-full">Contact</Link>
+                        </li>
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/admin/zones" className="block py-4 px-4 w-full">ADMIN ZONES</Link>
+                        </li>
+                        <li className="bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
+                            <Link to="/staff/entry" className="block py-4 px-6 w-full">VEHICLE ENTRY</Link>
                         </li>
                     </ul>
 
-                    <div className="hidden lg:block py-4 px-4 relative">
+                    {/* User Auth Section */}
+                    <div className="py-4 px-4 relative w-full lg:w-auto text-center lg:text-left">
                         {loading ? null : user ? (
-                            <div className="relative">
+                            <div className="relative inline-block">
                                 <span
                                     className="cursor-pointer font-semibold hover:bg-blue-700 px-2 py-1 rounded"
                                     onClick={() => setDropdownOpen((v) => !v)}
@@ -117,16 +180,20 @@ const Header = () => {
                                     {user.name}
                                 </span>
                                 {dropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-36 bg-white text-gray-800 rounded shadow-lg z-50">
-                                        <button
+                                    <div className="absolute right-0 lg:right-0 left-0 lg:left-auto mt-2 w-36 bg-white text-gray-800 rounded shadow-lg z-50 mx-auto">
+                                        <Link
+                                            to="/profile"
                                             className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                            onClick={() => { setDropdownOpen(false); /* TODO: chuyển sang trang hồ sơ */ }}
+                                            onClick={() => setDropdownOpen(false)}
                                         >
                                             Hồ sơ
-                                        </button>
+                                        </Link>
                                         <button
-                                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                            onClick={() => { logout(); setDropdownOpen(false); }}
+                                            className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 font-medium"
+                                            onClick={() => {
+                                                logout();
+                                                setDropdownOpen(false);
+                                            }}
                                         >
                                             Đăng xuất
                                         </button>
@@ -134,12 +201,12 @@ const Header = () => {
                                 )}
                             </div>
                         ) : (
-                            <span
-                                className="cursor-pointer font-semibold hover:bg-blue-700 px-2 py-1 rounded"
-                                onClick={() => window.location.href = '/signin'}
+                            <Link
+                                to="/signin"
+                                className="cursor-pointer font-semibold hover:bg-blue-700 px-4 py-2 rounded inline-block"
                             >
                                 Sign In
-                            </span>
+                            </Link>
                         )}
                     </div>
                 </div>

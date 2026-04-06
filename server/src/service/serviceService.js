@@ -1,29 +1,46 @@
 const Service = require("../schema/serviceSchema");
 
-const serviceService = {
-    getAllServices: async (filter = {}) => {
-        return await Service.find(filter).sort({ createdAt: -1 });
-    },
-
-    getServiceById: async (serviceId) => {
-        return await Service.findById(serviceId);
-    },
-
-    createService: async (serviceData) => {
-        const newService = new Service(serviceData);
-        return await newService.save();
-    },
-
-    updateService: async (serviceId, updateData) => {
-        return await Service.findByIdAndUpdate(serviceId, updateData, {
-            new: true,
-            runValidators: true
-        });
-    },
-
-    deleteService: async (serviceId) => {
-        return await Service.findByIdAndDelete(serviceId);
-    }
+const getAllServices = async ({ page, limit }) => {
+    const skip = page * limit;
+    const services = await Service.find()
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+    const total = await Service.countDocuments();
+    return { services, total };
 };
 
-module.exports = serviceService;
+const getAllServicesForDropdown = async () => {
+    // Chỉ lấy _id và serviceName để tối ưu hiệu năng cho dropdown
+    return await Service.find({}, "_id serviceName slug");
+};
+
+const getServiceById = async (id) => {
+    // Trả về toàn bộ object bao gồm longDescription, features, imageUrl...
+    return await Service.findById(id);
+};
+
+const createService = async (serviceData) => {
+    const newService = new Service(serviceData);
+    return await newService.save();
+};
+
+const updateService = async (id, updateData) => {
+    return await Service.findByIdAndUpdate(id, updateData, { 
+        new: true, 
+        runValidators: true 
+    });
+};
+
+const deleteService = async (id) => {
+    return await Service.findByIdAndDelete(id);
+};
+
+module.exports = {
+    getAllServices,
+    getServiceById,
+    createService,
+    updateService,
+    deleteService,
+    getAllServicesForDropdown
+};
