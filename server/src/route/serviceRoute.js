@@ -12,7 +12,7 @@ const serviceRoute = express.Router();
 
 // serviceRoute.use(authToken)
 
-serviceRoute.get("/", authRole("CUSTOMER"), getServices);
+serviceRoute.get("/", getServices);
 serviceRoute.get("/:id", getServiceById);
 serviceRoute.post("/", createService);
 serviceRoute.put("/:id", updateService);
