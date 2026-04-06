@@ -53,7 +53,12 @@ const authService = {
         if (!user || !user.refreshToken) return null;
 
         return user.refreshToken;
-    }
+    },
+
+    updatePassword: async (email, newPassword) => {
+        const hashedPassword = await passwordUtils.hashPassword(newPassword);
+        await User.findOneAndUpdate({ email }, { password: hashedPassword });
+    },
 };
 
 module.exports = authService;

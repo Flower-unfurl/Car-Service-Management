@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useUser } from '../../hooks/UseUser';
 import {
     Phone, Mail, MapPin, Clock, Search,
     Facebook, Twitter, Instagram, ChevronDown, Menu, X
@@ -6,6 +7,8 @@ import {
 
 const Header = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { user, logout, loading } = useUser();
+    const [dropdownOpen, setDropdownOpen] = useState(false);
 
     return (
         <header className="mx-auto font-sans">
@@ -95,8 +98,40 @@ const Header = () => {
                         <li className="py-4 px-4 hover:bg-blue-700 cursor-pointer">Contact</li>
                     </ul>
 
-                    <div className="hidden lg:block py-4 px-4 cursor-pointer hover:bg-blue-700">
-                        <Search size={20} />
+                    <div className="hidden lg:block py-4 px-4 relative">
+                        {loading ? null : user ? (
+                            <div className="relative">
+                                <span
+                                    className="cursor-pointer font-semibold hover:bg-blue-700 px-2 py-1 rounded"
+                                    onClick={() => setDropdownOpen((v) => !v)}
+                                >
+                                    {user.name}
+                                </span>
+                                {dropdownOpen && (
+                                    <div className="absolute right-0 mt-2 w-36 bg-white text-gray-800 rounded shadow-lg z-50">
+                                        <button
+                                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                            onClick={() => { setDropdownOpen(false); /* TODO: chuyển sang trang hồ sơ */ }}
+                                        >
+                                            Hồ sơ
+                                        </button>
+                                        <button
+                                            className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                                            onClick={() => { logout(); setDropdownOpen(false); }}
+                                        >
+                                            Đăng xuất
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <span
+                                className="cursor-pointer font-semibold hover:bg-blue-700 px-2 py-1 rounded"
+                                onClick={() => window.location.href = '/signin'}
+                            >
+                                Sign In
+                            </span>
+                        )}
                     </div>
                 </div>
             </nav>

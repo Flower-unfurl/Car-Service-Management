@@ -1,11 +1,12 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-    host: process.env.MailHost,
-    port: process.env.Port,
+    // host: process.env.MAILHOST,
+    // port: process.env.MAILPORT,
+    service: "gmail",
     auth: {
-        user: process.env.UserName,
-        pass: process.env.Password,
+        user: process.env.MAILUSER,
+        pass: process.env.MAILPASSWORD,
     },
 });
 
@@ -21,7 +22,7 @@ const emailUtils = {
     // Hàm gửi email
     sendOTPEmail: async (toEmail, otp) => {
         const mailOptions = {
-            from: '"Car Service Support" <your-email@gmail.com>',
+            from: '"Car Service Support"',
             to: toEmail,
             subject: "Mã xác thực đăng ký tài khoản (OTP)",
             html: `

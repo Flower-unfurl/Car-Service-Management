@@ -1,3 +1,101 @@
+// ======= OTP STORE FOR RESET PASSWORD =======
+const resetOtpStore = new Map();
+
+// ================= REQUEST RESET OTP =================
+const requestResetOtp = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) throw new ErrorException(400, "Email is required");
+        const user = await authService.findUserByEmail(email);
+        if (!user) throw new ErrorException(400, "Email không tồn tại trong hệ thống");
+
+        const otp = emailUtils.generateOTP(6);
+        resetOtpStore.set(email, {
+            otp,
+            expiresAt: Date.now() + 300000
+        });
+        await emailUtils.sendOTPEmail(email, otp);
+        res.status(200).json({ message: "Mã OTP đã được gửi đến email của bạn." });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ================= VERIFY RESET OTP =================
+const verifyResetOtp = async (req, res, next) => {
+    try {
+        const { email, otp } = req.body;
+
+        if (!email || !otp) 
+            throw new ErrorException(400, "Thiếu thông tin xác thực");
+
+        const stored = resetOtpStore.get(email);
+        if (!stored) 
+            throw new ErrorException(400, "Mã OTP không tồn tại hoặc đã bị hủy.");
+
+        if (Date.now() > stored.expiresAt) {
+            resetOtpStore.delete(email);
+            throw new ErrorException(400, "Mã OTP đã hết hạn.");
+        }
+
+        if (stored.otp !== otp) throw new ErrorException(400, "Mã OTP không chính xác.");
+        res.status(200).json({ message: "OTP xác thực thành công" });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ================= RESET PASSWORD =================
+const resetPassword = async (req, res, next) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        console.log(req.body)
+        if (!email || !otp || !newPassword) 
+            throw new ErrorException(400, "Thiếu thông tin");
+
+        const stored = resetOtpStore.get(email);
+        if (!stored) 
+            throw new ErrorException(400, "Mã OTP không tồn tại hoặc đã bị hủy.");
+
+        if (Date.now() > stored.expiresAt) {
+            resetOtpStore.delete(email);
+            throw new ErrorException(400, "Mã OTP đã hết hạn.");
+        }
+
+        if (stored.otp !== otp) throw new ErrorException(400, "Mã OTP không chính xác.");
+
+        // Kiểm tra độ mạnh mật khẩu
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            throw new ErrorException(400, "Password must be at least 8 characters, include uppercase, lowercase, number and special character");
+        }
+        // Đổi mật khẩu
+        await authService.updatePassword(email, newPassword);
+        resetOtpStore.delete(email);
+        res.status(200).json({ message: "Đổi mật khẩu thành công" });
+    } catch (error) {
+        next(error);
+    }
+};
+// ================= LOGOUT =================
+const logout = async (req, res, next) => {
+    try {
+        // Lấy userId từ middleware xác thực
+        const userId = req.user?._id;
+        if (userId) {
+            await authService.saveRefreshToken(userId, null);
+        }
+        // Xóa cookie phía client
+        res.clearCookie("accessToken", {
+            httpOnly: true,
+            secure: false,
+            sameSite: "lax"
+        });
+        res.status(200).json({ message: "Đăng xuất thành công" });
+    } catch (error) {
+        next(error);
+    }
+};
 const authService = require("../service/authService");
 const emailUtils = require("../util/emailUtils");
 const jwt = require("jsonwebtoken");
@@ -25,8 +123,10 @@ const requestOtp = async (req, res, next) => {
             throw new ErrorException(400, "All fields are required");
         }
 
-        if (password.length < 6) {
-            throw new ErrorException(400, "Password must be at least 6 characters");
+        // Kiểm tra độ mạnh của mật khẩu
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+        if (!passwordRegex.test(password)) {
+            throw new ErrorException(400, "Password must be at least 8 characters, include uppercase, lowercase, number and special character");
         }
 
         const existingUser = await authService.findUserByEmail(email);
@@ -156,5 +256,9 @@ module.exports = {
     getUsers,
     requestOtp,
     signUp,
-    signIn
+    signIn,
+    logout,
+    requestResetOtp,
+    verifyResetOtp,
+    resetPassword
 };

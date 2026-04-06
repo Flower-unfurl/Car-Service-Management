@@ -27,8 +27,18 @@ export default function SignUpPage() {
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
             newErrors.email = 'Invalid email format.';
         }
-        if (!formData.password || formData.password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters.';
+        if (!formData.password) {
+            newErrors.password = 'Password is required.';
+        } else if (formData.password.length < 8) {
+            newErrors.password = 'Password must be at least 8 characters.';
+        } else if (!/[A-Z]/.test(formData.password)) {
+            newErrors.password = 'Password must contain at least one uppercase letter.';
+        } else if (!/[a-z]/.test(formData.password)) {
+            newErrors.password = 'Password must contain at least one lowercase letter.';
+        } else if (!/[0-9]/.test(formData.password)) {
+            newErrors.password = 'Password must contain at least one number.';
+        } else if (!/[^A-Za-z0-9]/.test(formData.password)) {
+            newErrors.password = 'Password must contain at least one special character.';
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -165,7 +175,14 @@ export default function SignUpPage() {
                     onCancel={() => setShowOtpModal(false)} 
                 />
             )}
-            
+
+            <div className="mt-6 text-center text-sm text-gray-600">
+                Đã có tài khoản?{' '}
+                <a href="/signin" className="text-[#1e5aa0] font-bold hover:underline">Sign in</a>
+                <br />
+                Quên mật khẩu?{' '}
+                <a href="/forgot-password" className="text-[#1e5aa0] font-bold hover:underline">Forgot password</a>
+            </div>
         </div>
     );
 }
