@@ -32,6 +32,13 @@ const ticketSchema = new mongoose.Schema(
         // QR tracking
         qrToken: { type: String, unique: true, sparse: true },
 
+        // Loại phiếu
+        ticketType: {
+            type: String,
+            enum: ["PARKING", "SERVICE"],
+            default: "SERVICE"
+        },
+
         // Trạng thái
         status: {
             type: String,

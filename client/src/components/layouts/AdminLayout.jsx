@@ -19,6 +19,7 @@ import {
     CarOutlined,
     DashboardOutlined,
     DeploymentUnitOutlined,
+    FileTextOutlined,
     HomeOutlined,
     MenuFoldOutlined,
     MenuUnfoldOutlined,
@@ -49,6 +50,11 @@ const serviceItems = [
         icon: <AppstoreOutlined />,
         label: "Quản lý dịch vụ",
     },
+    {
+        key: "/admin/invoices",
+        icon: <FileTextOutlined />,
+        label: "Hóa đơn",
+    },
 ];
 
 const menuItems = [
@@ -66,6 +72,7 @@ const titleMap = {
     "/admin/materials": "Material",
     "/admin/lookup": "Tra cứu",
     "/admin/services": "Quản lý dịch vụ",
+    "/admin/invoices": "Hóa đơn",
 };
 
 export default function AdminLayout() {
