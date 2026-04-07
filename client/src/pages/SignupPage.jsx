@@ -105,84 +105,131 @@ export default function SignUpPage() {
         }
     };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-10 px-4 relative">
-            <div className="flex w-full max-w-[1100px] bg-white shadow-2xl overflow-hidden flex-row-reverse rounded-2xl">
+return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4 py-10">
+        <div className="w-full max-w-[1100px] bg-white rounded-2xl shadow-xl overflow-hidden grid md:grid-cols-2">
 
-                {/* Cột phải: Hình ảnh & Overlay */}
-                <div className="hidden md:flex md:w-1/2 relative">
-                    <img
-                        src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=1000"
-                        alt="Mechanic"
-                        className="absolute inset-0 w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-[#1e5aa0]/85 flex flex-col justify-center px-12 text-white text-right">
-                        <h2 className="text-3xl font-bold uppercase tracking-wider mb-4">Join Community</h2>
-                        <div className="w-16 h-[3px] bg-white mb-6 ml-auto rounded-full"></div>
-                        <p className="text-blue-100 text-sm italic">"Caring for your car is like taking care of your loved ones."</p>
+            {/* LEFT: FORM */}
+            <div className="p-8 md:p-12 flex flex-col justify-center">
+                <div className="max-w-md w-full mx-auto">
+                    <h1 className="text-2xl font-bold text-center text-gray-800 uppercase mb-8">
+                        Create Account
+                    </h1>
+
+                    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                        {/* Name */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-700 uppercase mb-1 block">
+                                Full Name
+                            </label>
+                            <input
+                                name="name"
+                                type="text"
+                                placeholder="Enter your name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-3 rounded-lg border text-sm outline-none transition 
+                                ${errors.name ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`}
+                            />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                        </div>
+
+                        {/* Email */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-700 uppercase mb-1 block">
+                                Email
+                            </label>
+                            <input
+                                name="email"
+                                type="email"
+                                placeholder="example@mail.com"
+                                value={formData.email}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-3 rounded-lg border text-sm outline-none transition 
+                                ${errors.email ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`}
+                            />
+                            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                        </div>
+
+                        {/* Password */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-700 uppercase mb-1 block">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <input
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    className={`w-full px-4 py-3 pr-12 rounded-lg border text-sm outline-none transition 
+                                    ${errors.password ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500"
+                                >
+                                    {showPassword ? "Hide" : "Show"}
+                                </button>
+                            </div>
+                            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                        </div>
+
+                        {/* Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className={`w-full py-3 rounded-lg text-white font-bold uppercase text-xs transition shadow 
+                            ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1e5aa0] hover:bg-[#164a85]'}`}
+                        >
+                            {loading && !showOtpModal ? "Đang gửi OTP..." : "Continue ›"}
+                        </button>
+                    </form>
+
+                    {/* 🔥 FIX: move xuống trong card */}
+                    <div className="mt-6 text-center text-sm text-gray-600">
+                        Đã có tài khoản?{" "}
+                        <a href="/signin" className="text-[#1e5aa0] font-semibold hover:underline">
+                            Sign in
+                        </a>
+                        <br />
+                        Quên mật khẩu?{" "}
+                        <a href="/forgot-password" className="text-[#1e5aa0] font-semibold hover:underline">
+                            Forgot password
+                        </a>
                     </div>
                 </div>
-
-                {/* Cột trái: Form */}
-                <div className="w-full md:w-1/2 p-10 bg-white">
-                    <div className="max-w-md mx-auto">
-                        <h1 className="text-2xl font-bold text-center text-gray-800 uppercase mb-8">Create Account</h1>
-                        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-                            {/* Input Name */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
-                                <input name="name" type="text" placeholder="Enter your name" value={formData.name} className={`w-full px-4 py-3 rounded-lg border outline-none transition text-sm ${errors.name ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
-                                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-                            </div>
-
-                            {/* Input Email */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email</label>
-                                <input name="email" type="email" placeholder="example@mail.com" value={formData.email} className={`w-full px-4 py-3 rounded-lg border outline-none transition text-sm ${errors.email ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
-                                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-                            </div>
-
-                            {/* Input Password */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Password</label>
-                                <div className="relative">
-                                    <input name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} className={`w-full px-4 py-3 pr-10 rounded-lg border outline-none transition text-sm ${errors.password ? 'border-red-500' : 'border-gray-200 focus:border-[#1e5aa0]'}`} onChange={handleChange} />
-                                    <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" onClick={() => setShowPassword(!showPassword)}>
-                                        {showPassword ? "Hide" : "Show"}
-                                    </button>
-                                </div>
-                                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className={`w-full py-3 rounded-lg text-white font-bold uppercase text-xs transition shadow-md ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1e5aa0] hover:bg-[#164a85]'}`}
-                            >
-                                {loading && !showOtpModal ? "Đang gửi OTP..." : "Continue ›"}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
             </div>
 
-            {/* Hiển thị Modal OTP khi showOtpModal = true */}
-            {showOtpModal && (
-                <OtpModal 
-                    email={formData.email} 
-                    onVerify={handleVerifyOtp} 
-                    onCancel={() => setShowOtpModal(false)} 
+            {/* RIGHT: IMAGE */}
+            <div className="hidden md:block relative">
+                <img
+                    src="https://images.unsplash.com/photo-1621905251189-08b45d6a269e?q=80&w=1000"
+                    alt="Mechanic"
+                    className="absolute inset-0 w-full h-full object-cover"
                 />
-            )}
-
-            <div className="mt-6 text-center text-sm text-gray-600">
-                Đã có tài khoản?{' '}
-                <a href="/signin" className="text-[#1e5aa0] font-bold hover:underline">Sign in</a>
-                <br />
-                Quên mật khẩu?{' '}
-                <a href="/forgot-password" className="text-[#1e5aa0] font-bold hover:underline">Forgot password</a>
+                <div className="absolute inset-0 bg-[#1e5aa0]/80 flex flex-col justify-center items-end text-right px-10 text-white">
+                    <h2 className="text-3xl font-bold uppercase mb-4">
+                        Join Community
+                    </h2>
+                    <div className="w-16 h-[3px] bg-white mb-6 rounded-full"></div>
+                    <p className="text-sm text-blue-100 italic max-w-xs">
+                        "Caring for your car is like taking care of your loved ones."
+                    </p>
+                </div>
             </div>
         </div>
-    );
+
+        {/* OTP Modal */}
+        {showOtpModal && (
+            <OtpModal
+                email={formData.email}
+                onVerify={handleVerifyOtp}
+                onCancel={() => setShowOtpModal(false)}
+            />
+        )}
+    </div>
+);
 }
