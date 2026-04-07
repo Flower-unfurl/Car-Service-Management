@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { UserContext } from "../context/UserContext.js";
+import { UserContext } from "../context/UserContext";
 
 // Custom hook để dùng ở mọi component
 export function useUser() {

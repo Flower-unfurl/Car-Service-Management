@@ -66,7 +66,6 @@ const emailUtils = {
                         <li><b>Thời gian:</b> ${dateStr}</li>
                         <li><b>Dịch vụ:</b> ${services.join(", ")}</li>
                         <li><b>Tổng thanh toán:</b> <span style="color: #1e5aa0; font-weight: bold;">$${totalPrice.toFixed(2)}</span></li>
-                        <li><b>Khu vực thực hiện:</b> ${zoneName}</li>
                     </ul>
                     <p>Vui lòng đến đúng giờ để được phục vụ tốt nhất. Hẹn gặp lại bạn!</p>
                 </div>

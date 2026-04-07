@@ -6,11 +6,24 @@ let Zone = require("../schema/zoneSchema");
 let Service = require("../schema/serviceSchema");
 let emailUtils = require("../util/emailUtils");
 let ErrorException = require("../util/errorException");
+const { verifyToken } = require("../util/tokenUtils");
+
+// Middleware check login nhưng không bắt buộc (không bắn 401 nếu không có token)
+const softAuthToken = async (req, res, next) => {
+    const token = req.cookies?.accessToken;
+    if (token) {
+        const decoded = verifyToken(token);
+        if (decoded) {
+            req.user = decoded;
+        }
+    }
+    next();
+};
 
 // Create booking
-router.post('/', async function (req, res, next) {
+router.post('/', softAuthToken, async function (req, res, next) {
     try {
-        const { customerName, phone, email, licensePlate, expectedTime, serviceIds } = req.body;
+        const { customerName, phone, email, licensePlate, expectedTime, serviceIds, ticketId } = req.body;
 
         if (!customerName || !phone || !licensePlate || !expectedTime || !serviceIds || !serviceIds.length) {
             throw new ErrorException(400, "Vui lòng cung cập đầy đủ thông tin đặt lịch.");
@@ -69,9 +82,10 @@ router.post('/', async function (req, res, next) {
             }
         }
 
-        if (!assignedZone) {
-            throw new ErrorException(400, "Xin lỗi, hiện tại không còn khoang trống vào khung giờ này.");
-        }
+        // BỎ THROW ERROR NẾU KHÔNG CÓ ZONE - VẪN CHO PHÉP ĐẶT LỊCH
+        // if (!assignedZone) {
+        //     throw new ErrorException(400, "Xin lỗi, hiện tại không còn khoang trống vào khung giờ này.");
+        // }
 
         const appointment = await Appointment.create({
             customerName,
@@ -80,7 +94,9 @@ router.post('/', async function (req, res, next) {
             licensePlate,
             expectedTime: bookingTime,
             serviceIds: uniqueServiceIds, // Dùng mảng đã lọc ID hợp lệ
-            zoneId: assignedZone._id,
+            zoneId: assignedZone ? assignedZone._id : null,
+            ticketId,
+            userId: req.user ? req.user._id : null, // Gắn ID người dùng nếu đã đăng nhập
             status: "BOOKED"
         });
 
@@ -92,7 +108,7 @@ router.post('/', async function (req, res, next) {
                 totalPrice,
                 expectedTime: bookingTime,
                 services: services.map(s => s.serviceName),
-                zoneName: assignedZone.name
+                zoneName: assignedZone ? assignedZone.name : "Chưa phân bổ"
             });
         }
 
@@ -168,14 +184,57 @@ router.get('/available-zones', async function (req, res, next) {
     }
 });
 
-// Lookup appointments by license plate
-router.get('/lookup/:licensePlate', async function (req, res, next) {
+// Lookup appointments by phone number (ONLY ADMIM & STAFF)
+router.get('/lookup/:phone', CheckLogin, async function (req, res, next) {
     try {
-        const { licensePlate } = req.params;
-        const appointments = await Appointment.find({ licensePlate })
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'STAFF') {
+            throw new ErrorException(403, "Bạn không có quyền thực hiện tra cứu này.");
+        }
+        const { phone } = req.params;
+        const appointments = await Appointment.find({ phone })
             .populate("serviceIds")
             .populate("zoneId")
             .sort({ createdAt: -1 });
+        res.status(200).json(appointments);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Lấy toàn bộ lịch hẹn của CHÍNH BẢN THÂN GUEST
+router.get('/my-appointments', CheckLogin, async function (req, res, next) {
+    try {
+        const appointments = await Appointment.find({ userId: req.user._id })
+            .populate("serviceIds")
+            .populate("zoneId")
+            .sort({ expectedTime: -1 });
+        res.status(200).json(appointments);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Tìm kiếm lịch hẹn của CÁ NHÂN THEO NGÀY
+router.get('/my-appointments/search', CheckLogin, async function (req, res, next) {
+    try {
+        const { date } = req.query; // Định dạng YYYY-MM-DD
+        if (!date) {
+            throw new ErrorException(400, "Vui lòng chọn ngày cần tìm.");
+        }
+
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const appointments = await Appointment.find({
+            userId: req.user._id,
+            expectedTime: { $gte: startOfDay, $lte: endOfDay }
+        })
+            .populate("serviceIds")
+            .populate("zoneId")
+            .sort({ expectedTime: 1 });
+
         res.status(200).json(appointments);
     } catch (error) {
         next(error);
@@ -206,8 +265,23 @@ router.put('/:id', async function (req, res, next) {
         const { id } = req.params;
         const updatedData = req.body;
         console.log(`Updating appointment ${id} with:`, updatedData);
-        const appointment = await Appointment.findByIdAndUpdate(id, updatedData, { new: true });
+
+        // Cập nhật và populate thông tin dịch vụ để chuẩn bị gửi email nếu cần
+        const appointment = await Appointment.findByIdAndUpdate(id, updatedData, { new: true })
+            .populate("serviceIds");
+
         if (!appointment) throw new ErrorException(404, "Không tìm thấy lịch hẹn.");
+
+        // Nếu trạng thái đổi thành CANCELLED và có email, thực hiện gửi email thông báo
+        if (updatedData.status === 'CANCELLED' && appointment.email) {
+            console.log(`Sending cancellation email to: ${appointment.email}`);
+            await emailUtils.sendBookingCancelEmail(appointment.email, {
+                customerName: appointment.customerName,
+                expectedTime: appointment.expectedTime,
+                services: appointment.serviceIds.map(s => s.serviceName)
+            });
+        }
+
         console.log(`Updated successfully:`, appointment.status);
         res.status(200).json({ message: "Cập nhật lịch hẹn thành công!", data: appointment });
     } catch (error) {

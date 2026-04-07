@@ -11,8 +11,8 @@ const getAllServices = async ({ page, limit }) => {
 };
 
 const getAllServicesForDropdown = async () => {
-    // Chỉ lấy _id và serviceName để tối ưu hiệu năng cho dropdown
-    return await Service.find({}, "_id serviceName slug");
+    // Chỉ lấy _id, serviceName và price để tối ưu hiệu năng cho dropdown
+    return await Service.find({}, "_id serviceName price slug");
 };
 
 const getServiceById = async (id) => {
@@ -26,9 +26,9 @@ const createService = async (serviceData) => {
 };
 
 const updateService = async (id, updateData) => {
-    return await Service.findByIdAndUpdate(id, updateData, { 
-        new: true, 
-        runValidators: true 
+    return await Service.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true
     });
 };
 
