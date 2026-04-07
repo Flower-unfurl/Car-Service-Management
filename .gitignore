@@ -137,3 +137,14 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Runtime uploads
+server/uploads/**
+!server/uploads/services/
+!server/uploads/services/.gitkeep
+!server/uploads/materials/
+!server/uploads/materials/.gitkeep
+
+# Runtime uploads
+server/uploads/services/*
+!server/uploads/services/.gitkeep

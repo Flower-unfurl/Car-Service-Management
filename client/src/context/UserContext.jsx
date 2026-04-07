@@ -1,28 +1,22 @@
-import { useState, useEffect, createContext } from "react";
+
+import { createContext, useState, useEffect } from "react";
 import axios from "axios";
 
-export const UserContext = createContext(null);
+export const UserContext = createContext();
 
 export function UserProvider({ children }) {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true); // true khi đang kiểm tra session
 
     useEffect(() => {
-        console.log("UserProvider: Checking session via /auth/me...");
         axios
             .get("http://localhost:5000/auth/me", { withCredentials: true })
             .then((res) => {
-                console.log("UserProvider: Session check success:", res.data.user);
-                setUser(res.data.user);
+                console.log(res.data)
+                setUser(res.data.user)
             })
-            .catch((err) => {
-                console.log("UserProvider: Session check failed/no user.");
-                setUser(null);
-            })
-            .finally(() => {
-                console.log("UserProvider: Loading set to false.");
-                setLoading(false);
-            });
+            .catch(() => setUser(null))
+            .finally(() => setLoading(false));
     }, []);
 
     const logout = async () => {

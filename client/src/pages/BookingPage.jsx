@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, Lock } from 'lucide-react';
+import { useUser } from '../hooks/UseUser';
 
 const BookingPage = () => {
     const navigate = useNavigate();
+    const { user, loading: userLoading } = useUser();
     const [services, setServices] = useState([]);
     const [formData, setFormData] = useState({
         customerName: '',
@@ -15,6 +17,19 @@ const BookingPage = () => {
         time: '',
         selectedServiceIds: []
     });
+
+    // Auto-fill form data when user context is available
+    useEffect(() => {
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                customerName: user.name || prev.customerName,
+                email: user.email || prev.email
+            }));
+        }
+    }, [user]);
+
+
     const [ticketId, setTicketId] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
@@ -103,7 +118,7 @@ const BookingPage = () => {
                 ticketId: ticketId // Thêm mã ticket vào payload 🎟️
             };
 
-            const response = await axios.post('http://localhost:5000/booking', payload);
+            const response = await axios.post('http://localhost:5000/booking', payload, { withCredentials: true });
             setMessage({ type: 'success', text: response.data.message });
             setTimeout(() => navigate('/'), 3000);
         } catch (error) {
@@ -115,6 +130,37 @@ const BookingPage = () => {
             setLoading(false);
         }
     };
+
+    if (userLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1e5aa0]"></div>
+            </div>
+        );
+    }
+
+    if (!user) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center space-y-6">
+                    <div className="bg-blue-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
+                        <Lock className="w-10 h-10 text-[#1e5aa0]" />
+                    </div>
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-bold text-gray-900">Yêu cầu đăng nhập</h2>
+                        <p className="text-gray-500">Vui lòng đăng nhập để có thể đặt lịch hẹn và theo dõi lịch trình của bạn.</p>
+                    </div>
+                    <button
+                        onClick={() => navigate('/signin', { state: { from: '/booking' } })}
+                        className="w-full bg-[#1e5aa0] text-white py-3 rounded-xl font-bold hover:bg-[#164275] transition-all flex items-center justify-center gap-2"
+                    >
+                        Đăng Nhập Ngay
+                    </button>
+                    <p className="text-sm text-gray-400">Bạn chưa có tài khoản? <span onClick={() => navigate('/auth/signup')} className="text-[#1e5aa0] font-bold cursor-pointer hover:underline">Đăng ký</span></p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8" style={{

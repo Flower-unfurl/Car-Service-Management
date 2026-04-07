@@ -3,6 +3,8 @@ const Service = require("../schema/serviceSchema");
 const getAllServices = async ({ page, limit }) => {
     const skip = page * limit;
     const services = await Service.find()
+        .populate("materials.materialId", "materialName unit category")
+        .populate("materialUsages.materialId", "materialName unit category")
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 });
@@ -17,7 +19,9 @@ const getAllServicesForDropdown = async () => {
 
 const getServiceById = async (id) => {
     // Trả về toàn bộ object bao gồm longDescription, features, imageUrl...
-    return await Service.findById(id);
+    return await Service.findById(id)
+        .populate("materials.materialId", "materialName unit category")
+        .populate("materialUsages.materialId", "materialName unit category");
 };
 
 const createService = async (serviceData) => {

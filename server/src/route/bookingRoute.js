@@ -21,7 +21,7 @@ const softAuthToken = async (req, res, next) => {
 };
 
 // Create booking
-router.post('/', softAuthToken, async function (req, res, next) {
+router.post('/', CheckLogin, async function (req, res, next) {
     try {
         const { customerName, phone, email, licensePlate, expectedTime, serviceIds, ticketId } = req.body;
 

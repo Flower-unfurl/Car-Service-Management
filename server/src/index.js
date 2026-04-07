@@ -5,6 +5,7 @@ const corsConfig = require("./config/corsConfig.js")
 const cookieParser = require("cookie-parser")
 const http = require("http")
 const dns = require("dns")
+const path = require("path")
 const serviceRoute = require("./route/serviceRoute.js")
 const authRoute = require("./route/authRoute.js")
 
@@ -16,6 +17,7 @@ const zoneRoute = require("./route/zoneRoute.js")
 const materialRoute = require("./route/materialRoute.js")
 const materialCategoryRoute = require("./route/materialCategoryRoute.js")
 const inspectionRoute = require("./route/inspectionRoute.js")
+const serviceTaskRoute = require("./route/serviceTaskRoute.js")
 const errorHandlerMiddleware = require("./middleware/errorHandlerMiddleware.js")
 
 dotenv.config()
@@ -29,6 +31,7 @@ const port = process.env.PORT ?? 3000
 app.use(express.json())
 app.use(cookieParser())
 app.use(corsConfig)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")))
 
 const server = http.createServer(app)
 
@@ -42,6 +45,7 @@ connectDB().then(() => {
     app.use("/materials", materialRoute)
     app.use("/material-categories", materialCategoryRoute)
     app.use("/inspection", inspectionRoute)
+    app.use("/service-task", serviceTaskRoute)
 
 
     app.use(errorHandlerMiddleware)
