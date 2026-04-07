@@ -156,7 +156,7 @@ const BookingPage = () => {
                     >
                         Đăng Nhập Ngay
                     </button>
-                    <p className="text-sm text-gray-400">Bạn chưa có tài khoản? <span onClick={() => navigate('/auth/signup')} className="text-[#1e5aa0] font-bold cursor-pointer hover:underline">Đăng ký</span></p>
+                    <p className="text-sm text-gray-400">Bạn chưa có tài khoản? <span onClick={() => navigate('/signup')} className="text-[#1e5aa0] font-bold cursor-pointer hover:underline">Đăng ký</span></p>
                 </div>
             </div>
         );
