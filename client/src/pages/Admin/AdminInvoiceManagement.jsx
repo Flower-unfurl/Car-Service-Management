@@ -30,7 +30,7 @@ export default function AdminInvoiceManagement() {
     const [banner, setBanner] = useState({ type: "", message: "" });
 
     const serviceTickets = useMemo(() => {
-        return tickets.filter((ticket) => ticket.ticketType === "SERVICE");
+        return tickets.filter((ticket) => ticket.ticketType === "SERVICE" || ticket.status !== "PARKING");
     }, [tickets]);
 
     const selectedTicket = useMemo(() => {
@@ -180,7 +180,7 @@ export default function AdminInvoiceManagement() {
         }
     };
 
-    if (!userLoading && user?.role !== "ADMIN") {
+    if (!userLoading && (!(user?.role === "ADMIN") && !(user?.role === "STAFF"))) {
         return (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
                 Ban khong co quyen truy cap man hinh hoa don.

@@ -143,7 +143,7 @@ export default function AdminServiceManagement() {
         try {
             const [allServices, materialResponse] = await Promise.all([
                 fetchAllServices(),
-                axios.get(`${API_BASE}/materials`),
+                axios.get(`${API_BASE}/materials`, { withCredentials: true }),
             ]);
 
             setServices(allServices);

@@ -1,25 +1,33 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useContext } from 'react';
 import axios from 'axios';
 import dispatchApi, { getErrorMessage } from '../services/dispatchApi';
 import { 
     Camera, Car, User, Hash, FileCheck, ClipboardList, 
     CheckCircle, QrCode, AlertCircle, Calendar, ArrowRight, ShieldCheck, Cpu, Download
 } from 'lucide-react';
+import { UserContext } from '../context/UserContext';
 
-const SERVICE_DROPDOWN_LIMIT = 3;
 
 export default function StaffVehicleEntry() {
+    const { user, loading: contextLoading } = useContext(UserContext);
     const [step, setStep] = useState(1);
     const [isSimulatingAI, setIsSimulatingAI] = useState(false);
     const [availableZones, setAvailableZones] = useState([]);
     const [brands, setBrands] = useState([]);
+    const [selectedBrandModels, setSelectedBrandModels] = useState([]);
+    const [serviceMode, setServiceMode] = useState("MANUAL"); 
+    const [appointments, setAppointments] = useState([]);
+    const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
+
+    // Infinite scroll service states
     const [serviceOptions, setServiceOptions] = useState([]);
     const [servicePage, setServicePage] = useState(1);
     const [serviceHasMore, setServiceHasMore] = useState(true);
-    const [serviceLoadingMore, setServiceLoadingMore] = useState(false);
+    const [isFetchingServices, setIsFetchingServices] = useState(false);
+    const serviceListRef = useRef(null);
+
     const [selectedServiceIds, setSelectedServiceIds] = useState([]);
-    const [selectedBrandModels, setSelectedBrandModels] = useState([]);
-    
+        
     // Step 1 State: Ticket
     const [ticketData, setTicketData] = useState({
         licensePlate: '',
@@ -38,7 +46,7 @@ export default function StaffVehicleEntry() {
     const [inspectionData, setInspectionData] = useState({
         odometer: '',
         fuelLevel: '50',
-        condition: '', // General condition note
+        condition: '',
     });
     const [damages, setDamages] = useState([]);
     const [newDamage, setNewDamage] = useState({ area: 'FRONT_BUMPER', severity: 'MINOR', description: '' });
@@ -51,82 +59,82 @@ export default function StaffVehicleEntry() {
         fetchInitialData();
     }, []);
 
+    useEffect(() => {
+        console.log("Current User Context:", user);
+        console.log("Context Loading Status:", contextLoading);
+    }, [user, contextLoading]);
+    
+    useEffect(() => {
+        // 1. Khai báo hàm ở scope của useEffect
+        const fetchAppointments = async () => {
+            // 2. Kiểm tra điều kiện (Guard clause) ngay đầu hàm
+            if (contextLoading || !user) return; 
+
+            if (serviceMode === "APPOINTMENT" && ticketData.customerPhone) {
+                try {
+                    const res = await axios.get(`http://localhost:5000/booking/lookup/${ticketData.customerPhone.trim()}`, { withCredentials: true });
+                    setAppointments(Array.isArray(res.data) ? res.data : []);
+                } catch (err) {
+                    console.error("Failed to fetch appointments", err);
+                }
+            }
+        };
+
+        // 3. Gọi hàm
+        fetchAppointments();
+    }, [serviceMode, ticketData.customerPhone, user, contextLoading]);
+
+    const fetchServices = useCallback(async (page) => {
+        if (isFetchingServices) return;
+        setIsFetchingServices(true);
+        try {
+            const res = await axios.get(`http://localhost:5000/service/dropdown?page=${page}&limit=4`);
+            const { data, hasMore } = res.data;
+            setServiceOptions(prev => page === 1 ? data : [...prev, ...data]);
+            setServiceHasMore(hasMore);
+            setServicePage(page);
+        } catch (err) {
+            console.error("Failed to fetch services", err);
+        } finally {
+            setIsFetchingServices(false);
+        }
+    }, [isFetchingServices]);
+
     const fetchInitialData = async () => {
         try {
-            const [zonesRes, brandsRes, dropdownRes] = await Promise.all([
+            const [zonesRes, brandsRes] = await Promise.all([
                 axios.get("http://localhost:5000/zone/available"),
                 axios.get("http://localhost:5000/brand"),
-                dispatchApi.getServiceDropdown({
-                    page: 1,
-                    limit: SERVICE_DROPDOWN_LIMIT
-                })
             ]);
-
-            const initialServices = Array.isArray(dropdownRes?.data)
-                ? dropdownRes.data
-                : [];
-
             setAvailableZones(zonesRes.data.data);
             setBrands(brandsRes.data.data);
-            setServiceOptions(initialServices);
-            setServicePage(1);
-            setServiceHasMore(Boolean(dropdownRes?.hasMore));
         } catch (err) {
             console.error("Failed to load initial data", err);
         }
+        // Load trang đầu services riêng
+        await fetchServicesPage(1);
     };
 
-    const fetchMoreServices = async (pageToFetch) => {
-        if (serviceLoadingMore) return;
-        if (pageToFetch !== 1 && !serviceHasMore) return;
-
-        setServiceLoadingMore(true);
+    const fetchServicesPage = async (page) => {
+        setIsFetchingServices(true);
         try {
-            const dropdownRes = await dispatchApi.getServiceDropdown({
-                page: pageToFetch,
-                limit: SERVICE_DROPDOWN_LIMIT
-            });
-
-            const nextServices = Array.isArray(dropdownRes?.data)
-                ? dropdownRes.data
-                : [];
-
-            setServiceOptions((prev) => {
-                if (pageToFetch === 1) {
-                    return nextServices;
-                }
-
-                const existingIds = new Set(prev.map((item) => item._id));
-                const dedupedNewItems = nextServices.filter((item) => !existingIds.has(item._id));
-
-                return [...prev, ...dedupedNewItems];
-            });
-            setServicePage(pageToFetch);
-            setServiceHasMore(Boolean(dropdownRes?.hasMore));
+            const res = await axios.get(`http://localhost:5000/service/dropdown?page=${page}&limit=10`);
+            const { data, hasMore } = res.data;
+            setServiceOptions(prev => page === 1 ? data : [...prev, ...data]);
+            setServiceHasMore(hasMore);
+            setServicePage(page);
         } catch (err) {
-            console.error("Failed to load more services", err);
+            console.error("Failed to fetch services", err);
         } finally {
-            setServiceLoadingMore(false);
+            setIsFetchingServices(false);
         }
     };
 
-    const handleServiceScroll = (event) => {
-        const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
-        const reachedBottom = scrollTop + clientHeight >= scrollHeight - 10;
-
-        if (reachedBottom) {
-            fetchMoreServices(servicePage + 1);
-        }
-    };
-
-    const handleServiceWheel = (event) => {
-        if (event.deltaY <= 0) return;
-
-        const { scrollHeight, clientHeight } = event.currentTarget;
-        const notScrollableYet = scrollHeight <= clientHeight;
-
-        if (notScrollableYet) {
-            fetchMoreServices(servicePage + 1);
+    const handleServiceScroll = (e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+        const nearBottom = scrollHeight - scrollTop - clientHeight < 40;
+        if (nearBottom && serviceHasMore && !isFetchingServices) {
+            fetchServicesPage(servicePage + 1);
         }
     };
 
@@ -180,7 +188,7 @@ export default function StaffVehicleEntry() {
         e.preventDefault();
         setGlobalError("");
         if (!validateTicket()) return;
-        setStep(2); // Chỉ qua bước đồng kiểm, chưa lưu server
+        setStep(2);
     };
 
     const addDamageRecord = () => {
@@ -206,15 +214,15 @@ export default function StaffVehicleEntry() {
         try {
             const payload = {
                 ticketData,
-                inspectionData: {
-                    ...inspectionData,
-                    damages
-                },
-                serviceIds: ticketData.ticketType === "SERVICE" ? selectedServiceIds : []
+                inspectionData: { ...inspectionData, damages },
+                serviceIds: ticketData.ticketType === "SERVICE" ? selectedServiceIds : [],
+                ...(serviceMode === "APPOINTMENT" && selectedAppointmentId
+                    ? { appointmentId: selectedAppointmentId }
+                    : {})
             };
             const data = await dispatchApi.createFullEntry(payload);
             setCreatedTicket(data);
-            setStep(3); // Hoàn tất
+            setStep(3);
         } catch (error) {
             setGlobalError(getErrorMessage(error, "Failed to complete entry process."));
         } finally {
@@ -347,7 +355,6 @@ Please keep this token to track the service status online.
                                     <h3 className="text-2xl font-bold text-gray-800">Create Ticket</h3>
                                     <p className="text-sm text-gray-500 mt-1">Enter vehicle & customer info</p>
                                 </div>
-                                {/* AI Action */}
                                 <button 
                                     onClick={handleAIScan}
                                     disabled={isSimulatingAI}
@@ -359,7 +366,6 @@ Please keep this token to track the service status online.
                             </div>
 
                             <form onSubmit={submitTicket} className="space-y-6">
-                                {/* Auto Data row */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5 flex items-center gap-1"><Hash size={14}/> License Plate *</label>
@@ -403,6 +409,7 @@ Please keep this token to track the service status online.
                                         </p>
                                     </div>
                                 </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5 flex items-center gap-1">Brand</label>
@@ -444,9 +451,7 @@ Please keep this token to track the service status online.
                                             placeholder="Ex: Silver"
                                         />
                                     </div>
-                                    <div>
-                                        {/* Spacer */}
-                                    </div>
+                                    <div>{/* Spacer */}</div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -491,7 +496,6 @@ Please keep this token to track the service status online.
                                     </div>
                                 </div>
 
-                                {/* Next Button */}
                                 <button 
                                     type="submit" 
                                     disabled={isLoading}
@@ -583,7 +587,6 @@ Please keep this token to track the service status online.
                                         </button>
                                     </div>
 
-                                    {/* Damage List */}
                                     {damages.length > 0 && (
                                         <div className="mt-4 space-y-2">
                                             {damages.map((dmg, idx) => (
@@ -600,58 +603,182 @@ Please keep this token to track the service status online.
                                     )}
                                 </div>
 
+                                {/* ===== SERVICE SELECTION SECTION ===== */}
                                 {ticketData.ticketType === "SERVICE" && (
                                     <>
                                         <hr className="border-gray-100" />
                                         <div>
                                             <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
                                                 <FileCheck size={18} className="text-[#1e5aa0]" />
-                                                Chon dich vu cho xe
+                                                Chọn dịch vụ cho xe
                                             </h3>
-                                            <p className="text-xs text-gray-500 mb-3">
-                                                Danh sach nay se duoc snapshot gia vao ServiceOrder va sinh ServiceTask theo stepOrder.
-                                            </p>
 
-                                            <div
-                                                onScroll={handleServiceScroll}
-                                                onWheel={handleServiceWheel}
-                                                className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3"
-                                            >
-                                                {serviceOptions.length > 0 ? (
-                                                    serviceOptions.map((service) => {
-                                                        const checked = selectedServiceIds.includes(service._id);
-                                                        return (
-                                                            <button
-                                                                type="button"
-                                                                key={service._id}
-                                                                onClick={() => toggleService(service._id)}
-                                                                className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
-                                                                    checked
-                                                                        ? "border-[#1e5aa0] bg-blue-50 text-blue-900"
-                                                                        : "border-gray-200 bg-white text-gray-700 hover:border-blue-300"
-                                                                }`}
-                                                            >
-                                                                <span className="font-semibold">{service.serviceName || "Unnamed service"}</span>
-                                                                <span className="text-xs font-bold">{checked ? "Da chon" : "Chon"}</span>
-                                                            </button>
-                                                        );
-                                                    })
-                                                ) : (
-                                                    <p className="text-xs text-gray-500">Khong co dich vu nao trong he thong.</p>
-                                                )}
-
-                                                {serviceLoadingMore && (
-                                                    <p className="text-xs text-gray-500 text-center py-2">Dang tai them dich vu...</p>
-                                                )}
-
-                                                {!serviceLoadingMore && serviceHasMore && serviceOptions.length > 0 && (
-                                                    <p className="text-[11px] text-gray-400 text-center py-1">Cuon xuong de tai them</p>
-                                                )}
+                                            {/* Mode Switcher */}
+                                            <div className="mb-4">
+                                                <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">
+                                                    Hình thức đặt dịch vụ
+                                                </label>
+                                                <select
+                                                    value={serviceMode}
+                                                    onChange={(e) => {
+                                                        setServiceMode(e.target.value);
+                                                        setSelectedServiceIds([]);
+                                                        setSelectedAppointmentId("");
+                                                    }}
+                                                    className="w-full px-4 py-3 rounded-xl border bg-gray-50 outline-none transition focus:bg-white border-gray-200 focus:border-[#1e5aa0] focus:ring-2 focus:ring-[#1e5aa0]/20 font-semibold"
+                                                >
+                                                    <option value="MANUAL">🔧 Chọn dịch vụ (Khách chưa đặt lịch hẹn)</option>
+                                                    <option value="APPOINTMENT">📅 Khách đã có lịch hẹn</option>
+                                                </select>
                                             </div>
 
-                                            <p className="mt-2 text-xs text-gray-600">
-                                                Da chon: <b>{selectedServiceIds.length}</b> dich vu
-                                            </p>
+                                            {/* MANUAL MODE - Infinite Scroll */}
+                                            {serviceMode === "MANUAL" && (
+                                                <div>
+                                                    <p className="text-xs text-gray-500 mb-3">
+                                                        Chọn các dịch vụ bên dưới. Cuộn xuống để xem thêm. Giá sẽ được snapshot vào ServiceOrder và sinh ServiceTask theo stepOrder.
+                                                    </p>
+                                                    <div
+                                                        ref={serviceListRef}
+                                                        onScroll={handleServiceScroll}
+                                                        className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3"
+                                                    >
+                                                        {serviceOptions.map((service) => {
+                                                            const checked = selectedServiceIds.includes(service._id);
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    key={service._id}
+                                                                    onClick={() => toggleService(service._id)}
+                                                                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                                                                        checked
+                                                                            ? "border-[#1e5aa0] bg-blue-50 text-blue-900"
+                                                                            : "border-gray-200 bg-white text-gray-700 hover:border-blue-300"
+                                                                    }`}
+                                                                >
+                                                                    <span className="font-semibold">{service.serviceName || "Unnamed service"}</span>
+                                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                                        checked ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"
+                                                                    }`}>
+                                                                        {checked ? "✓ Đã chọn" : "Chọn"}
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })}
+
+                                                        {/* Loading spinner */}
+                                                        {isFetchingServices && (
+                                                            <div className="flex items-center justify-center py-3 gap-2 text-gray-400">
+                                                                <Cpu size={14} className="animate-spin" />
+                                                                <span className="text-xs">Đang tải thêm dịch vụ...</span>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Nút Load More nếu thanh cuộn không hoạt động tốt */}
+                                                        {serviceHasMore && !isFetchingServices && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => fetchServicesPage(servicePage + 1)}
+                                                                className="w-full mt-2 py-2 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+                                                            >
+                                                                + Tải thêm dịch vụ
+                                                            </button>
+                                                        )}
+
+                                                        {/* End of list */}
+                                                        {!serviceHasMore && serviceOptions.length > 0 && (
+                                                            <p className="text-center text-xs text-gray-400 py-2 mt-2">
+                                                                ✓ Đã hiển thị tất cả {serviceOptions.length} dịch vụ
+                                                            </p>
+                                                        )}
+
+                                                        {/* Empty state */}
+                                                        {serviceOptions.length === 0 && !isFetchingServices && (
+                                                            <p className="text-xs text-gray-500 py-4 text-center">
+                                                                Không có dịch vụ nào trong hệ thống.
+                                                            </p>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="mt-2 text-xs text-gray-600">
+                                                        Đã chọn: <b>{selectedServiceIds.length}</b> dịch vụ
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            {/* APPOINTMENT MODE */}
+                                            {serviceMode === "APPOINTMENT" && (
+                                                <div>
+                                                    {!ticketData.customerPhone ? (
+                                                        <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-yellow-800 text-sm">
+                                                            <AlertCircle size={16} className="flex-shrink-0" />
+                                                            <span>Vui lòng nhập <b>số điện thoại khách hàng</b> ở bước 1 để tra cứu lịch hẹn.</span>
+                                                        </div>
+                                                    ) : appointments.length === 0 ? (
+                                                        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-4 text-gray-500 text-sm">
+                                                            <Calendar size={16} className="flex-shrink-0" />
+                                                            <span>Không tìm thấy lịch hẹn nào cho số <b>{ticketData.customerPhone}</b>.</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                                            {appointments.map((appt) => {
+                                                                const isSelected = selectedAppointmentId === appt._id;
+                                                                const serviceNames = appt.serviceIds?.map(s => s.serviceName || s).join(", ") || "N/A";
+                                                                const appointedDate = appt.appointmentDate
+                                                                    ? new Date(appt.appointmentDate).toLocaleDateString("vi-VN", {
+                                                                        day: "2-digit", month: "2-digit", year: "numeric",
+                                                                        hour: "2-digit", minute: "2-digit"
+                                                                      })
+                                                                    : "N/A";
+
+                                                                return (
+                                                                    <button
+                                                                        type="button"
+                                                                        key={appt._id}
+                                                                        onClick={() => {
+                                                                            setSelectedAppointmentId(appt._id);
+                                                                            const ids = appt.serviceIds?.map(s => s._id || s) || [];
+                                                                            setSelectedServiceIds(ids);
+                                                                        }}
+                                                                        className={`w-full text-left rounded-xl border px-4 py-3 transition ${
+                                                                            isSelected
+                                                                                ? "border-[#1e5aa0] bg-blue-50 ring-2 ring-[#1e5aa0]/20"
+                                                                                : "border-gray-200 bg-white hover:border-blue-300"
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-start justify-between gap-2">
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <p className="text-xs text-gray-400 font-mono mb-0.5">#{appt._id?.slice(-6).toUpperCase()}</p>
+                                                                                <p className="text-sm font-bold text-gray-800 truncate">{serviceNames}</p>
+                                                                                <div className="flex items-center gap-2 mt-1">
+                                                                                    <Calendar size={11} className="text-gray-400" />
+                                                                                    <span className="text-xs text-gray-500">{appointedDate}</span>
+                                                                                    {appt.zoneId && (
+                                                                                        <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-semibold">
+                                                                                            Zone: {appt.zoneId?.zoneName || appt.zoneId}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                            <span className={`flex-shrink-0 text-xs font-bold px-2 py-1 rounded-full ${
+                                                                                isSelected ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-500"
+                                                                            }`}>
+                                                                                {isSelected ? "✓ Chọn" : "Chọn"}
+                                                                            </span>
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+
+                                                    {selectedAppointmentId && (
+                                                        <p className="mt-2 text-xs text-emerald-700 font-semibold">
+                                                            ✓ Đã chọn lịch hẹn — {selectedServiceIds.length} dịch vụ sẽ được áp dụng.
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </>
                                 )}
@@ -718,6 +845,9 @@ Please keep this token to track the service status online.
                                         setSelectedServiceIds([]);
                                         setCreatedTicket(null);
                                         setDamages([]);
+                                        setServiceMode("MANUAL");
+                                        setSelectedAppointmentId("");
+                                        setAppointments([]);
                                     }}
                                     className="text-[#1e5aa0] font-bold text-sm uppercase tracking-wider hover:bg-blue-50 px-6 py-3 rounded-full transition"
                                 >

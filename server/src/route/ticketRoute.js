@@ -28,8 +28,8 @@ ticketRoute.post("/:id/services", authRole("ADMIN", "STAFF"), addServicesToTicke
 
 ticketRoute.get("/:id/invoice", authRole("ADMIN", "STAFF"), getTicketInvoice);
 ticketRoute.patch("/:id/invoice-draft", authRole("ADMIN"), updateInvoiceDraft);
-ticketRoute.post("/:id/invoice-confirm", authRole("ADMIN"), confirmInvoice);
-ticketRoute.post("/:id/payment-confirm", authRole("ADMIN"), confirmInvoicePayment);
+ticketRoute.post("/:id/invoice-confirm", authRole("ADMIN", "STAFF"), confirmInvoice);
+ticketRoute.post("/:id/payment-confirm", authRole("ADMIN", "STAFF"), confirmInvoicePayment);
 
 ticketRoute.get("/:id", authRole("ADMIN", "STAFF"), getTicketById);
 

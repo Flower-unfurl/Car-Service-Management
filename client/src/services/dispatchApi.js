@@ -123,6 +123,10 @@ const dispatchApi = {
         const res = await api.get(`/ticket/guest/${qrToken}/invoice`);
         return unwrapData(res);
     },
+    getAppointmentsByPhone: async (phone) => {
+        const res = await api.get(`/appointment/lookup/${phone}`);
+        return unwrapData(res);
+    },
 };
 
 export default dispatchApi;

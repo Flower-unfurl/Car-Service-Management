@@ -168,21 +168,61 @@ const ticketService = {
     },
 
     getTicketInvoice: async (ticketId) => {
-        const ticket = await Ticket.findById(ticketId);
-        if (!ticket) {
-            throw new ErrorException(404, "Ticket not found");
-        }
+    const ticket = await Ticket.findById(ticketId);
+    if (!ticket) {
+        throw new ErrorException(404, "Ticket not found");
+    }
 
-        const order = await Order.findOne({ ticketId }).sort({ createdAt: -1 }).populate("services.serviceId", "serviceName");
-        if (!order) {
-            throw new ErrorException(404, "Service order not found for this ticket");
-        }
+    let order = await Order.findOne({ ticketId })
+        .sort({ createdAt: -1 })
+        .populate("services.serviceId", "serviceName");
+
+    // =========================================
+    // 🅿️ PARKING: chưa có order vẫn trả invoice tạm
+    // =========================================
+    if (!order && ticket.ticketType === "PARKING") {
+        const now = new Date();
+        // const now = new Date("2026-07-05T12:50:00");
+        const checkinAt = new Date(ticket.checkinAt || ticket.createdAt);
+
+        const durationMs = now - checkinAt;
+        const durationHours = durationMs / (1000 * 60 * 60);
+        const hours = Math.max(1, Math.ceil(durationHours));
+
+        const pricePerHour = 10000;
+        const parkingFee = hours * pricePerHour;
 
         return {
             ticket,
-            invoice: order
+            invoice: {
+                services: [],
+                totalServiceFee: 0,
+                parkingFee,
+                includeParkingFee: true,
+                totalAmount: parkingFee,
+                invoiceStatus: "DRAFT",
+                paymentStatus: "UNPAID",
+                invoiceConfirmedAt: null,
+                isPublicForGuest: false
+            }
         };
-    },
+    }
+
+    // =========================================
+    // ❌ SERVICE bắt buộc phải có order
+    // =========================================
+    if (!order) {
+        throw new ErrorException(
+            404,
+            "Service order not found for this ticket"
+        );
+    }
+
+    return {
+        ticket,
+        invoice: order
+    };
+},
 
     updateInvoiceDraft: async (ticketId, includeParkingFee) => {
         const order = await Order.findOne({ ticketId }).sort({ createdAt: -1 });
@@ -210,6 +250,28 @@ const ticketService = {
         if (!order) {
             throw new ErrorException(404, "Service order not found for this ticket");
         }
+        const ticket = await Ticket.findById(ticketId);
+    if (!ticket) {
+        throw new ErrorException(404, "Ticket not found");
+    }
+        // const checkoutAt = new Date("2026-07-05T12:50:00");
+
+        ticket.checkoutAt = new Date();
+        ticket.save();
+
+        // thời gian gửi (giờ)
+        const durationMs = ticket.checkoutAt - ticket.checkinAt;
+        const durationHours = durationMs / (1000 * 60 * 60);
+
+        // làm tròn lên (ví dụ: 1.2h → 2h)
+        const hours = Math.ceil(durationHours);
+
+        // giá tiền mỗi giờ
+        const pricePerHour = 10000;
+
+
+        // tính tiền
+        order.parkingFee = hours * pricePerHour;
 
         order.invoiceStatus = "CONFIRMED";
         order.isPublicForGuest = true;
@@ -221,50 +283,86 @@ const ticketService = {
         return order;
     },
 
-    confirmInvoicePayment: async (ticketId, actorId) => {
-        const order = await Order.findOne({ ticketId }).sort({ createdAt: -1 });
-        if (!order) {
-            throw new ErrorException(404, "Service order not found for this ticket");
-        }
+    async confirmInvoicePayment(ticketId, actorId) {
+    const ticket = await Ticket.findById(ticketId);
+    if (!ticket) {
+        throw new ErrorException(404, "Ticket not found");
+    }
 
-        // Ensure guest can see the invoice status after admin confirms cash payment.
-        if (order.invoiceStatus !== "CONFIRMED") {
-            order.invoiceStatus = "CONFIRMED";
-            order.isPublicForGuest = true;
-            order.invoiceConfirmedAt = new Date();
-            order.invoiceConfirmedBy = actorId || null;
-            order.totalAmount = order.totalServiceFee + (order.includeParkingFee ? order.parkingFee : 0);
-        }
+    let order = await Order.findOne({ ticketId }).sort({ createdAt: -1 });
 
-        if (order.paymentStatus !== "PAID") {
-            order.paymentStatus = "PAID";
-        }
+    // ==============================
+    // 🚗 AUTO CREATE ORDER FOR PARKING
+    // ==============================
+    if (!order && ticket.ticketType === "PARKING") {
+        // const checkoutAt = new Date("2026-07-05T12:50:00");
+        const checkoutAt = new Date();
+        const checkinAt = new Date(ticket.checkinAt || ticket.createdAt);
 
-        await order.save();
+        const durationMs = checkoutAt - checkinAt;
+        const durationHours = durationMs / (1000 * 60 * 60);
+        const hours = Math.max(1, Math.ceil(durationHours));
 
-        const ticket = await Ticket.findById(ticketId);
-    if (!ticket) return order;
+        const pricePerHour = 10000;
+        const parkingFee = hours * pricePerHour;
+        ticket.parkingFee = parkingFee;
+        ticket.save();
 
-    // ================= GIẢI PHÓNG ZONE =================
-    // Chỉ khi thanh toán xong + chưa checkout
+        order = await Order.create({
+            ticketId: ticket._id,
+            customerPhone: ticket.customerPhone || "N/A",
+            services: [],
+            parkingFee,
+            totalServiceFee: 0,
+            includeParkingFee: true,
+            totalAmount: parkingFee,
+            invoiceStatus: "CONFIRMED",
+            isPublicForGuest: true,
+            invoiceConfirmedAt: new Date(),
+            invoiceConfirmedBy: actorId || null,
+            paymentStatus: "PAID"
+        });
+    }
+
+    // ==============================
+    // ❌ STILL NOT FOUND
+    // ==============================
+    if (!order) {
+        throw new ErrorException(404, "Invoice not found");
+    }
+
+    // ==============================
+    // 💵 UPDATE EXISTING ORDER
+    // ==============================
+    if (order.invoiceStatus !== "CONFIRMED") {
+        order.invoiceStatus = "CONFIRMED";
+        order.isPublicForGuest = true;
+        order.invoiceConfirmedAt = new Date();
+        order.invoiceConfirmedBy = actorId || null;
+        order.totalAmount =
+            order.totalServiceFee +
+            (order.includeParkingFee ? order.parkingFee : 0);
+    }
+
+    order.paymentStatus = "PAID";
+    await order.save();
+
+    // ==============================
+    // 🚪 CHECKOUT + RELEASE ZONE
+    // ==============================
     if (!ticket.checkoutAt) {
         ticket.checkoutAt = new Date();
+        // ticket.checkoutAt = new Date("2026-07-05T12:50:00");
         ticket.status = "COMPLETED";
         await ticket.save();
 
-        // 🔥 tìm zone theo zoneName
         const zone = await Zone.findOne({ zoneName: ticket.zone });
 
         if (zone) {
             zone.occupied = Math.max(0, zone.occupied - 1);
-
-            // cập nhật lại availableSlots
             zone.availableSlots = zone.capacity - zone.occupied;
 
-            // update status zone
-            if (zone.occupied === 0) {
-                zone.status = "AVAILABLE";
-            } else if (zone.occupied >= zone.capacity) {
+            if (zone.occupied >= zone.capacity) {
                 zone.status = "FULL";
             } else {
                 zone.status = "AVAILABLE";
@@ -273,8 +371,9 @@ const ticketService = {
             await zone.save();
         }
     }
-        return order;
-    },
+
+    return order;
+},
 
     getPublicInvoiceByQrToken: async (qrToken) => {
         const ticket = await ticketService.getTicketByQrToken(qrToken);
