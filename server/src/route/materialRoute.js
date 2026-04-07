@@ -2,6 +2,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const Material = require("../schema/materialSchema");
+const { authRole, authToken } = require("../middleware/authMiddleware");
 const { uploadMaterialImage } = require("../middleware/uploadMiddleware");
 
 const router = express.Router();
@@ -49,7 +50,7 @@ const removeUploadedMaterialImage = async (imageUrl) => {
 // =========================
 // 1. GET ALL MATERIALS
 // =========================
-router.get("/", async (_req, res) => {
+router.get("/", authToken, authRole("ADMIN", "STAFF"), async (_req, res) => {
     try {
         const materials = await Material.find().sort({ createdAt: -1 });
         res.send(materials);
@@ -61,7 +62,7 @@ router.get("/", async (_req, res) => {
 // =========================
 // 2. LOW STOCK ALERT
 // =========================
-router.get("/low/alert", async (_req, res) => {
+router.get("/low/alert", authToken, authRole("ADMIN", "STAFF"), async (_req, res) => {
     try {
         const materials = await Material.find({
             $expr: { $lte: ["$stockQuantity", "$minAlertLevel"] },
@@ -76,7 +77,7 @@ router.get("/low/alert", async (_req, res) => {
 // =========================
 // 3. GET MATERIAL BY ID
 // =========================
-router.get("/:id", async (req, res) => {
+router.get("/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         const material = await Material.findById(req.params.id);
 
@@ -93,7 +94,7 @@ router.get("/:id", async (req, res) => {
 // =========================
 // 4. CREATE MATERIAL
 // =========================
-router.post("/", uploadMaterialImage.single("image"), async (req, res) => {
+router.post("/", authToken, authRole("ADMIN", "STAFF"), uploadMaterialImage.single("image"), async (req, res) => {
     try {
         const materialName = typeof req.body.materialName === "string" ? req.body.materialName.trim() : "";
         const unit = typeof req.body.unit === "string" ? req.body.unit.trim() : "";
@@ -133,7 +134,7 @@ router.post("/", uploadMaterialImage.single("image"), async (req, res) => {
 // =========================
 // 5. UPDATE MATERIAL
 // =========================
-router.put("/:id", uploadMaterialImage.single("image"), async (req, res) => {
+router.put("/:id", authToken, authRole("ADMIN", "STAFF"), uploadMaterialImage.single("image"), async (req, res) => {
     try {
         const material = await Material.findById(req.params.id);
 
@@ -188,7 +189,7 @@ router.put("/:id", uploadMaterialImage.single("image"), async (req, res) => {
 // =========================
 // 6. DELETE MATERIAL
 // =========================
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         const material = await Material.findById(req.params.id);
 
@@ -208,7 +209,7 @@ router.delete("/:id", async (req, res) => {
 // =========================
 // 7. ADD STOCK (NHẬP KHO)
 // =========================
-router.put("/add-stock/:id", async (req, res) => {
+router.put("/add-stock/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         const quantity = toNumberOrUndefined(req.body.quantity);
 
@@ -235,7 +236,7 @@ router.put("/add-stock/:id", async (req, res) => {
 // =========================
 // 8. TRỪ KHO (MANUAL - OPTIONAL)
 // =========================
-router.put("/use/:id", async (req, res) => {
+router.put("/use/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         const quantity = toNumberOrUndefined(req.body.quantity);
 

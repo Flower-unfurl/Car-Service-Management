@@ -2,6 +2,7 @@ const Service = require("../schema/serviceSchema");
 
 const getAllServices = async ({ page, limit }) => {
     const skip = page * limit;
+    console.log(skip)
     const services = await Service.find()
         .populate("materials.materialId", "materialName unit category")
         .populate("materialUsages.materialId", "materialName unit category")
@@ -12,9 +13,19 @@ const getAllServices = async ({ page, limit }) => {
     return { services, total };
 };
 
-const getAllServicesForDropdown = async () => {
-    // Chỉ lấy _id, serviceName và price để tối ưu hiệu năng cho dropdown
-    return await Service.find({}, "_id serviceName price slug");
+const getAllServicesForDropdown = async (page = 1, limit = 4) => {
+    const skip = (page - 1) * limit;
+
+    const services = await Service.find({}, "_id serviceName")
+        .skip(skip)
+        .limit(limit);
+
+    const total = await Service.countDocuments();
+
+    return {
+        data: services,
+        hasMore: skip + services.length < total
+    };
 };
 
 const getServiceById = async (id) => {

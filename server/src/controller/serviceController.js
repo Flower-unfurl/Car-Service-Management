@@ -44,7 +44,12 @@ const toMaterialArray = (value) => {
     const list = Array.isArray(parsed) ? parsed : [];
 
     return list
-        .filter((item) => item?.materialId && item?.quantity !== undefined && item?.quantity !== null)
+        .filter(
+            (item) =>
+                item?.materialId &&
+                item?.quantity !== undefined &&
+                item?.quantity !== null,
+        )
         .map((item) => ({
             materialId: item.materialId,
             quantity: Number(item.quantity),
@@ -93,7 +98,9 @@ const getImageExtension = (contentType, imageUrl) => {
     }
 
     try {
-        const candidate = path.extname(new URL(imageUrl).pathname || "").toLowerCase();
+        const candidate = path
+            .extname(new URL(imageUrl).pathname || "")
+            .toLowerCase();
         if (candidate && candidate.length <= 5) {
             return candidate;
         }
@@ -113,7 +120,10 @@ const saveImageFromUrl = async (imageUrl) => {
     }
 
     if (!["http:", "https:"].includes(parsedUrl.protocol)) {
-        throw new ErrorException(400, `URL hình ảnh phải bắt đầu bằng http/https: ${imageUrl}`);
+        throw new ErrorException(
+            400,
+            `URL hình ảnh phải bắt đầu bằng http/https: ${imageUrl}`,
+        );
     }
 
     try {
@@ -127,7 +137,10 @@ const saveImageFromUrl = async (imageUrl) => {
 
         const contentType = response?.headers?.["content-type"] || "";
         if (!contentType.startsWith("image/")) {
-            throw new ErrorException(400, `URL không trỏ tới tệp hình ảnh: ${imageUrl}`);
+            throw new ErrorException(
+                400,
+                `URL không trỏ tới tệp hình ảnh: ${imageUrl}`,
+            );
         }
 
         const extension = getImageExtension(contentType, imageUrl);
@@ -146,25 +159,43 @@ const saveImageFromUrl = async (imageUrl) => {
     }
 };
 
-const buildServicePayload = async (req, fallbackImages = [], { isCreate = false } = {}) => {
+const buildServicePayload = async (
+    req,
+    fallbackImages = [],
+    { isCreate = false } = {},
+) => {
     const body = req.body || {};
     const payload = {};
 
-    const serviceName = typeof body.serviceName === "string" ? body.serviceName.trim() : undefined;
-    const description = typeof body.description === "string" ? body.description.trim() : undefined;
+    const serviceName =
+        typeof body.serviceName === "string"
+            ? body.serviceName.trim()
+            : undefined;
+    const description =
+        typeof body.description === "string"
+            ? body.description.trim()
+            : undefined;
     const price = toFiniteNumber(body.price);
     const durationMinutes = toFiniteNumber(body.durationMinutes);
-    const vehicleType = typeof body.vehicleType === "string" ? body.vehicleType.trim() : undefined;
-    const status = typeof body.status === "string" ? body.status.trim() : undefined;
+    const vehicleType =
+        typeof body.vehicleType === "string"
+            ? body.vehicleType.trim()
+            : undefined;
+    const status =
+        typeof body.status === "string" ? body.status.trim() : undefined;
 
     if (serviceName !== undefined) payload.serviceName = serviceName;
     if (description !== undefined) payload.description = description;
     if (price !== undefined) payload.price = price;
-    if (durationMinutes !== undefined) payload.durationMinutes = durationMinutes;
+    if (durationMinutes !== undefined)
+        payload.durationMinutes = durationMinutes;
     if (vehicleType) payload.vehicleType = vehicleType;
     if (status) payload.status = status;
 
-    const hasLongDescription = Object.prototype.hasOwnProperty.call(body, "longDescription");
+    const hasLongDescription = Object.prototype.hasOwnProperty.call(
+        body,
+        "longDescription",
+    );
     const hasFeatures = Object.prototype.hasOwnProperty.call(body, "features");
     const hasMaterials =
         Object.prototype.hasOwnProperty.call(body, "materialUsages") ||
@@ -172,7 +203,7 @@ const buildServicePayload = async (req, fallbackImages = [], { isCreate = false 
     const hasImageInputs =
         Object.prototype.hasOwnProperty.call(body, "existingImages") ||
         Object.prototype.hasOwnProperty.call(body, "imageUrls") ||
-        ((req.files || []).length > 0);
+        (req.files || []).length > 0;
 
     if (isCreate || hasLongDescription) {
         payload.longDescription = toStringArray(body.longDescription);
@@ -183,17 +214,24 @@ const buildServicePayload = async (req, fallbackImages = [], { isCreate = false 
     }
 
     if (isCreate || hasMaterials) {
-        const normalizedMaterials = toMaterialArray(body.materialUsages ?? body.materials);
+        const normalizedMaterials = toMaterialArray(
+            body.materialUsages ?? body.materials,
+        );
         payload.materialUsages = normalizedMaterials;
         payload.materials = normalizedMaterials;
     }
 
     if (isCreate || hasImageInputs) {
-        const hasExistingImagesField = Object.prototype.hasOwnProperty.call(body, "existingImages");
+        const hasExistingImagesField = Object.prototype.hasOwnProperty.call(
+            body,
+            "existingImages",
+        );
         const existingImages = hasExistingImagesField
             ? toStringArray(body.existingImages)
             : toStringArray(fallbackImages);
-        const uploadedImages = (req.files || []).map((file) => `/uploads/services/${file.filename}`);
+        const uploadedImages = (req.files || []).map(
+            (file) => `/uploads/services/${file.filename}`,
+        );
         const imageUrls = toStringArray(body.imageUrls);
         const downloadedImages = [];
 
@@ -202,7 +240,11 @@ const buildServicePayload = async (req, fallbackImages = [], { isCreate = false 
             downloadedImages.push(imagePath);
         }
 
-        payload.imageUrl = uniqueValues([...existingImages, ...uploadedImages, ...downloadedImages]);
+        payload.imageUrl = uniqueValues([
+            ...existingImages,
+            ...uploadedImages,
+            ...downloadedImages,
+        ]);
     }
 
     return payload;
@@ -212,15 +254,19 @@ const getServices = async (req, res, next) => {
     try {
         const page = parseInt(req.query.page) || 0;
         const limit = parseInt(req.query.limit) || 4;
+        console.log(page);
 
-        const { services, total } = await serviceService.getAllServices({ page, limit });
-
+        const { services, total } = await serviceService.getAllServices({
+            page,
+            limit,
+        });
+        // console.log(page, services)
         res.status(200).json({
             data: services,
             total,
             page,
             limit,
-            hasMore: (page + 1) * limit < total
+            hasMore: (page + 1) * limit < total,
         });
     } catch (error) {
         next(error);
@@ -232,10 +278,17 @@ const getServices = async (req, res, next) => {
 
 const getDropdownServices = async (req, res, next) => {
     try {
-        const services = await serviceService.getAllServicesForDropdown();
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 4;
+
+        const result = await serviceService.getAllServicesForDropdown(
+            page,
+            limit,
+        );
+
         res.status(200).json({
             success: true,
-            data: services
+            ...result,
         });
     } catch (error) {
         next(error);
@@ -257,9 +310,9 @@ const getServiceById = async (req, res, next) => {
             throw new ErrorException(404, "Không tìm thấy dịch vụ yêu cầu.");
         }
 
-        res.status(200).json({ 
+        res.status(200).json({
             success: true,
-            data: service 
+            data: service,
         });
     } catch (error) {
         next(error);
@@ -268,7 +321,9 @@ const getServiceById = async (req, res, next) => {
 
 const createService = async (req, res, next) => {
     try {
-        const serviceData = await buildServicePayload(req, [], { isCreate: true });
+        const serviceData = await buildServicePayload(req, [], {
+            isCreate: true,
+        });
         if (!serviceData.serviceName) {
             throw new ErrorException(400, "Tên dịch vụ là bắt buộc.");
         }
@@ -276,9 +331,9 @@ const createService = async (req, res, next) => {
             throw new ErrorException(400, "Mô tả dịch vụ là bắt buộc.");
         }
         const createdService = await serviceService.createService(serviceData);
-        res.status(201).json({ 
-            message: "Tạo dịch vụ thành công", 
-            data: createdService 
+        res.status(201).json({
+            message: "Tạo dịch vụ thành công",
+            data: createdService,
         });
     } catch (error) {
         next(error);
@@ -291,19 +346,32 @@ const updateService = async (req, res, next) => {
         const currentService = await serviceService.getServiceById(id);
 
         if (!currentService) {
-            throw new ErrorException(404, "Không tìm thấy dịch vụ để cập nhật.");
+            throw new ErrorException(
+                404,
+                "Không tìm thấy dịch vụ để cập nhật.",
+            );
         }
 
-        const updateData = await buildServicePayload(req, currentService.imageUrl || [], { isCreate: false });
-        const updatedService = await serviceService.updateService(id, updateData);
+        const updateData = await buildServicePayload(
+            req,
+            currentService.imageUrl || [],
+            { isCreate: false },
+        );
+        const updatedService = await serviceService.updateService(
+            id,
+            updateData,
+        );
 
         if (!updatedService) {
-            throw new ErrorException(404, "Không tìm thấy dịch vụ để cập nhật.");
+            throw new ErrorException(
+                404,
+                "Không tìm thấy dịch vụ để cập nhật.",
+            );
         }
 
-        res.status(200).json({ 
-            message: "Cập nhật dịch vụ thành công", 
-            data: updatedService 
+        res.status(200).json({
+            message: "Cập nhật dịch vụ thành công",
+            data: updatedService,
         });
     } catch (error) {
         next(error);
@@ -331,5 +399,5 @@ module.exports = {
     createService,
     updateService,
     deleteService,
-    getDropdownServices
+    getDropdownServices,
 };
