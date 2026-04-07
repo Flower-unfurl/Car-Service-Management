@@ -159,6 +159,9 @@ const Header = () => {
                             <Link to="/booking" className="block py-4 px-4 w-full">Đặt lịch</Link>
                         </li>
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link to="/guest-tracking" className="block py-4 px-4 w-full">Theo dõi ticket</Link>
+                        </li>
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
                             <Link to="/lookup" className="block py-4 px-4 w-full">Tra cứu</Link>
                         </li>
 

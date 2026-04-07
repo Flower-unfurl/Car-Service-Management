@@ -6,6 +6,42 @@ const materialService = require("./materialService");
 const ticketService = require("./ticketService");
 const ErrorException = require("../util/errorException");
 
+const matchesUserId = (value, targetId) => {
+    if (!value || !targetId) {
+        return false;
+    }
+
+    return String(value._id || value) === String(targetId);
+};
+
+const isStaffAssignedToTask = (task, staffId) => {
+    if (!task || !staffId) {
+        return false;
+    }
+
+    if (matchesUserId(task.assignedStaffId, staffId)) {
+        return true;
+    }
+
+    return Array.isArray(task.supportStaffIds)
+        ? task.supportStaffIds.some((supportId) => matchesUserId(supportId, staffId))
+        : false;
+};
+
+const buildStaffTaskQuery = (staffId) => ({
+    $or: [
+        { assignedStaffId: staffId },
+        { supportStaffIds: staffId }
+    ]
+});
+
+const withTaskDetails = (query) => {
+    return query
+        .populate("serviceId", "serviceName description durationMinutes materials")
+        .populate("assignedStaffId", "name email phone")
+        .populate("supportStaffIds", "name email phone");
+};
+
 const buildProgressFromTasks = (tasks = []) => {
     if (!tasks.length) {
         return {
@@ -46,25 +82,20 @@ const assertTaskOwnershipForStaff = (task, actor) => {
         return;
     }
 
-    if (!task.assignedStaffId || String(task.assignedStaffId) !== String(actor._id)) {
-        throw new ErrorException(403, "Staff can only operate tasks assigned to themselves");
+    if (!isStaffAssignedToTask(task, actor._id)) {
+        throw new ErrorException(403, "Staff can only operate tasks assigned to themselves (primary/support)");
     }
 };
 
 const serviceTaskService = {
     // Get all tasks for a ticket
     getTasksByTicketId: async (ticketId) => {
-        return await ServiceTask.find({ ticketId })
-            .populate("serviceId", "serviceName description durationMinutes materials")
-            .populate("assignedStaffId", "name email phone")
-            .sort({ stepOrder: 1 });
+        return await withTaskDetails(ServiceTask.find({ ticketId })).sort({ stepOrder: 1 });
     },
 
     // Get single task by ID
     getTaskById: async (taskId) => {
-        const task = await ServiceTask.findById(taskId)
-            .populate("serviceId", "serviceName description durationMinutes materials")
-            .populate("assignedStaffId", "name email phone");
+        const task = await withTaskDetails(ServiceTask.findById(taskId));
         
         if (!task) {
             throw new ErrorException(404, "Service task not found");
@@ -75,9 +106,11 @@ const serviceTaskService = {
 
     // Get tasks assigned to a specific staff member
     getTasksByStaffId: async (staffId) => {
-        return await ServiceTask.find({ assignedStaffId: staffId })
+        return await ServiceTask.find(buildStaffTaskQuery(staffId))
             .populate("ticketId", "licensePlate customerName customerPhone status")
-            .populate("serviceId", "serviceName description")
+            .populate("serviceId", "serviceName description durationMinutes materials")
+            .populate("assignedStaffId", "name email phone")
+            .populate("supportStaffIds", "name email phone")
             .sort({ stepOrder: 1 });
     },
 
@@ -93,10 +126,11 @@ const serviceTaskService = {
         if (user.role === "STAFF") {
             return await ServiceTask.find({
                 ticketId,
-                assignedStaffId: user._id
+                ...buildStaffTaskQuery(user._id)
             })
                 .populate("serviceId", "serviceName description durationMinutes materials")
                 .populate("assignedStaffId", "name email phone")
+                .populate("supportStaffIds", "name email phone")
                 .sort({ stepOrder: 1 });
         }
 
@@ -124,7 +158,7 @@ const serviceTaskService = {
         }
 
         if (user.role === "STAFF") {
-            if (task.assignedStaffId && String(task.assignedStaffId._id || task.assignedStaffId) === String(user._id)) {
+            if (isStaffAssignedToTask(task, user._id)) {
                 return task;
             }
             throw new ErrorException(403, "Access denied");
@@ -134,7 +168,7 @@ const serviceTaskService = {
     },
 
     // Create tasks automatically when Order is created
-    createTasksFromOrder: async (orderId) => {
+    createTasksFromOrder: async (orderId, { defaultAssignedStaffId = null } = {}) => {
         const order = await Order.findById(orderId)
             .populate("services.serviceId");
 
@@ -146,19 +180,28 @@ const serviceTaskService = {
             throw new ErrorException(400, "Order has no services");
         }
 
+        const existingTasksCount = await ServiceTask.countDocuments({ ticketId: order.ticketId });
+        if (existingTasksCount > 0) {
+            throw new ErrorException(409, "Service tasks already generated for this ticket");
+        }
+
         const tasks = [];
         let stepOrder = 1;
 
         // Create tasks in order
         for (const orderService of order.services) {
             const service = orderService.serviceId;
+            if (!service?._id) {
+                continue;
+            }
             
             // Create task for this service
             const newTask = new ServiceTask({
                 ticketId: order.ticketId,
                 serviceId: service._id,
                 stepOrder: stepOrder,
-                status: "PENDING"
+                status: "PENDING",
+                assignedStaffId: defaultAssignedStaffId || null
             });
 
             const savedTask = await newTask.save();
@@ -166,7 +209,13 @@ const serviceTaskService = {
             stepOrder++;
         }
 
-        return tasks;
+        if (!tasks.length) {
+            throw new ErrorException(400, "Order has no valid services to create tasks");
+        }
+
+        await ticketService.updateTicketStatus(order.ticketId, "IN_SERVICE");
+
+        return await withTaskDetails(ServiceTask.find({ _id: { $in: tasks.map((task) => task._id) } })).sort({ stepOrder: 1 });
     },
 
     // Validate if task can be started (check sequential order)
@@ -240,7 +289,8 @@ const serviceTaskService = {
 
         return await ServiceTask.findById(taskId)
             .populate("serviceId", "serviceName description materials")
-            .populate("assignedStaffId", "name email");
+            .populate("assignedStaffId", "name email")
+            .populate("supportStaffIds", "name email");
     },
 
     // Complete a task (with automatic material deduction)
@@ -329,13 +379,22 @@ const serviceTaskService = {
 
         const populatedTask = await ServiceTask.findById(taskId)
             .populate("serviceId", "serviceName description materials")
-            .populate("assignedStaffId", "name email");
+            .populate("assignedStaffId", "name email")
+            .populate("supportStaffIds", "name email");
+
+        const ticketTasks = await ServiceTask.find({ ticketId: task.ticketId }).select("status");
+        const ticketReadyForPickup = ticketTasks.length > 0 && ticketTasks.every((row) => row.status === "COMPLETED");
+
+        if (ticketReadyForPickup) {
+            await ticketService.updateTicketStatus(task.ticketId, "READY_FOR_PICKUP");
+        }
 
         return {
             task: populatedTask,
             materialUsageRecords,
             lowStockMaterials,
-            materialWarnings
+            materialWarnings,
+            ticketReadyForPickup
         };
     },
 
@@ -357,11 +416,57 @@ const serviceTaskService = {
         }
 
         task.assignedStaffId = staffId;
+        task.supportStaffIds = (task.supportStaffIds || []).filter(
+            (supportId) => String(supportId) !== String(staffId)
+        );
         await task.save();
 
         return await ServiceTask.findById(taskId)
             .populate("serviceId", "serviceName description")
-            .populate("assignedStaffId", "name email phone");
+            .populate("assignedStaffId", "name email phone")
+            .populate("supportStaffIds", "name email phone");
+    },
+
+    // Add support staff to a task (Admin or involved Staff)
+    addSupportStaff: async (taskId, supportStaffId, actor) => {
+        assertAllowedTaskOperator(actor);
+
+        const task = await ServiceTask.findById(taskId);
+        if (!task) {
+            throw new ErrorException(404, "Task not found");
+        }
+
+        if (task.status === "COMPLETED") {
+            throw new ErrorException(400, "Cannot add support staff to completed task");
+        }
+
+        if (actor.role === "STAFF" && !isStaffAssignedToTask(task, actor._id)) {
+            throw new ErrorException(403, "Staff can only add support staff to their own tasks");
+        }
+
+        const supportStaff = await User.findById(supportStaffId);
+        if (!supportStaff || supportStaff.role !== "STAFF") {
+            throw new ErrorException(400, "Support user must be a STAFF account");
+        }
+
+        if (matchesUserId(task.assignedStaffId, supportStaffId)) {
+            throw new ErrorException(400, "Support staff is already the primary assignee");
+        }
+
+        if (isStaffAssignedToTask(task, supportStaffId)) {
+            return await ServiceTask.findById(taskId)
+                .populate("serviceId", "serviceName description")
+                .populate("assignedStaffId", "name email phone")
+                .populate("supportStaffIds", "name email phone");
+        }
+
+        task.supportStaffIds = [...(task.supportStaffIds || []), supportStaffId];
+        await task.save();
+
+        return await ServiceTask.findById(taskId)
+            .populate("serviceId", "serviceName description")
+            .populate("assignedStaffId", "name email phone")
+            .populate("supportStaffIds", "name email phone");
     },
 
     // Recommend staff for a task: specialty first, then availability, then workload
@@ -462,7 +567,7 @@ const serviceTaskService = {
         if (user.role === "STAFF") {
             const tasks = await ServiceTask.find({
                 ticketId,
-                assignedStaffId: user._id
+                ...buildStaffTaskQuery(user._id)
             });
             const taskIds = tasks.map((task) => task._id);
 
@@ -507,7 +612,7 @@ const serviceTaskService = {
         if (user.role === "STAFF") {
             const tasks = await ServiceTask.find({
                 ticketId,
-                assignedStaffId: user._id
+                ...buildStaffTaskQuery(user._id)
             });
             return buildProgressFromTasks(tasks);
         }
@@ -530,7 +635,8 @@ const serviceTaskService = {
             taskId,
             updateData,
             { new: true, runValidators: true }
-        ).populate("serviceId assignedStaffId");
+        )
+            .populate("serviceId assignedStaffId supportStaffIds");
 
         if (!task) {
             throw new ErrorException(404, "Task not found");

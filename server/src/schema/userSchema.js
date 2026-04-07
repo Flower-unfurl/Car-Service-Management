@@ -8,8 +8,17 @@ const userSchema = new mongoose.Schema({
     phone: String,
     role: {
         type: String,
-        enum: ["USER", "ADMIN"],
+        enum: ["USER", "ADMIN", "STAFF"],
         default: "USER"
+    },
+    specialty: {
+        type: String,
+        enum: ["INSPECTION", "CAR_WASH", "INTERIOR", "POLISHING", "MAINTENANCE", "REPAIR", null],
+        default: null
+    },
+    isAvailable: {
+        type: Boolean,
+        default: true
     },
     refreshToken: String
 }, { 
