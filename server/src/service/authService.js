@@ -59,6 +59,10 @@ const authService = {
         const hashedPassword = await passwordUtils.hashPassword(newPassword);
         await User.findOneAndUpdate({ email }, { password: hashedPassword });
     },
+
+    findUserById: async (id) => {
+        return await User.findOne({ _id: id });
+    }
 };
 
 module.exports = authService;

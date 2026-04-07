@@ -1,4 +1,12 @@
-// ======= OTP STORE FOR RESET PASSWORD =======
+const authService = require("../service/authService");
+const emailUtils = require("../util/emailUtils");
+const jwt = require("jsonwebtoken");
+const User = require("../schema/userSchema");
+const ErrorException = require("../util/errorException");
+const { generateAccessToken, generateRefreshToken, verifyToken, decodeToken } = require("../util/tokenUtils")
+
+const otpStore = new Map();
+
 const resetOtpStore = new Map();
 
 // ================= REQUEST RESET OTP =================
@@ -49,7 +57,7 @@ const verifyResetOtp = async (req, res, next) => {
 const resetPassword = async (req, res, next) => {
     try {
         const { email, otp, newPassword } = req.body;
-        console.log(req.body)
+   
         if (!email || !otp || !newPassword) 
             throw new ErrorException(400, "Thiếu thông tin");
 
@@ -96,13 +104,6 @@ const logout = async (req, res, next) => {
         next(error);
     }
 };
-const authService = require("../service/authService");
-const emailUtils = require("../util/emailUtils");
-const jwt = require("jsonwebtoken");
-const User = require("../schema/userSchema");
-const ErrorException = require("../util/errorException");
-
-const otpStore = new Map();
 
 // ================= GET USERS =================
 const getUsers = async (req, res, next) => {
@@ -268,6 +269,7 @@ const getMe = async (req, res, next) => {
 
         if (decoded) {
             userId = decoded._id;
+            console.log(userId)
             role = decoded.role;
         } else {
             // 2. Access token hết hạn → decode để lấy _id
@@ -298,9 +300,10 @@ const getMe = async (req, res, next) => {
             userId = decodedExpired._id;
         }
 
+        console.log(userId)
         // 5. Lấy thông tin user từ DB
         const user = await authService.findUserById(userId);
-        
+console.log(user)
         // Nếu không tìm thấy user trong DB (user đã bị xóa)
         if (!user) {
             return res.status(200).json({ user: null });
