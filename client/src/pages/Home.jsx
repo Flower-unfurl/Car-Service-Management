@@ -75,7 +75,6 @@ const LIMIT = 4;
 export default function Home() {
     const [services, setServices] = useState([]);
     const [reasonIdx, setReasonIdx] = useState(0);
-    const [serviceIdx, setServiceIdx] = useState(0); // index hiển thị (client-side)
     const [page, setPage] = useState(0); // page đã fetch
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -96,45 +95,38 @@ export default function Home() {
 
     const fetchServices = async (pageToFetch) => {
         setLoading(true);
+        console.log(pageToFetch)
         try {
             const res = await axios.get(
                 `http://localhost:5000/service?page=${pageToFetch}&limit=${LIMIT}`,
             );
+            
             const { data, hasMore } = res.data;
 
-            setServices((prev) => [...prev, ...data]);
+            setServices(data);
             setHasMore(hasMore);
             setPage(pageToFetch);
-
-            return data; // Trả về data để hàm nextService có thể dùng
         } catch (err) {
             console.error(err);
-            return []; // Trả về mảng rỗng nếu lỗi
         } finally {
             setLoading(false);
         }
     };
 
     const nextService = () => {
-        const nextIdx = serviceIdx + 1;
-        const totalFetched = services.length;
-
-        // Nếu slide tiếp theo chưa có data → fetch thêm
-        if (nextIdx + LIMIT > totalFetched && hasMore) {
+        if (hasMore && !loading) {
             fetchServices(page + 1);
-        }
-
-        if (nextIdx <= services.length - LIMIT) {
-            setServiceIdx(nextIdx);
         }
     };
 
     const prevService = () => {
-        if (serviceIdx > 0) setServiceIdx((prev) => prev - 1);
+        if (page > 0 && !loading) {
+            fetchServices(page - 1);
+        }
     };
 
-    const canNext = serviceIdx < services.length - LIMIT || hasMore;
-    const canPrev = serviceIdx > 0;
+    const canNext = hasMore;
+    const canPrev = page > 0;
 
     return (
         <div className="min-h-screen bg-white">
@@ -312,16 +304,14 @@ export default function Home() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {services
-                            .slice(serviceIdx, serviceIdx + LIMIT)
-                            .map((service) => (
-                                <div
-                                    key={service._id}
-                                    className="animate-in fade-in slide-in-from-right-5 duration-500"
-                                >
-                                    <ServiceCard service={service} />
-                                </div>
-                            ))}
+                        {services.map((service) => (
+                            <div
+                                key={service._id}
+                                className="animate-in fade-in slide-in-from-right-5 duration-500"
+                            >
+                                <ServiceCard service={service} />
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>

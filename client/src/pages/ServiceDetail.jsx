@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios'; // Hoặc instance axios tùy chỉnh của bạn
+import axios from 'axios';
 
 const ServiceDetail = () => {
-    const { id } = useParams(); // Lấy ID từ URL (ví dụ: /services/:id)
+    const { id } = useParams(); // Lấy ID từ URL
     const [service, setService] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-console.log(useParams())
+
     useEffect(() => {
         const fetchServiceDetail = async () => {
             try {
                 setLoading(true);
-                // Gọi tới API bạn vừa viết ở phía Backend
+                // Gọi tới API Backend
                 const response = await axios.get(`http://localhost:5000/service/${id}`);
-                
+
                 if (response.data.success) {
                     setService(response.data.data);
                 }
@@ -44,7 +44,7 @@ console.log(useParams())
     if (!service) return <div className="text-center py-10">Dịch vụ không tồn tại.</div>;
 
     return (
-        <div className="w-[75%] mx-auto font-sans py-4">
+        <div className="w-[75%] mx-auto font-sans py-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                 {/* Cột Trái: Hình ảnh */}
                 <div className="w-full h-full min-h-[400px]">
@@ -64,17 +64,35 @@ console.log(useParams())
                         </h2>
                     </div>
 
-                    {/* Giá và Thời gian (Optional - Thêm vào để đầy đủ thông tin) */}
-                    <div className="mb-4 flex gap-4 text-sm font-medium">
-                        <span className="text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    {/* Thông số chính: Giá và Thời gian */}
+                    <div className="mb-4 flex flex-wrap gap-3 text-sm font-medium">
+                        <span className="text-blue-600 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-100">
                             Price: ${service.price}
                         </span>
-                        <span className="text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                        <span className="text-gray-600 bg-gray-100 px-4 py-1.5 rounded-full border border-gray-200">
                             Duration: {service.durationMinutes} mins
                         </span>
                     </div>
 
-                    {/* Mô tả dài (render từng đoạn văn) */}
+                    {/* HIỂN THỊ DANH SÁCH VẬT TƯ (MATERIALS) */}
+                    {service.materials && service.materials.length > 0 && (
+                        <div className="mb-6">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase mb-2 tracking-wider">Required Materials:</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {service.materials.map((item, index) => (
+                                    <span 
+                                        key={index} 
+                                        className="text-emerald-700 bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100 text-xs font-semibold"
+                                    >
+                                        {/* Lưu ý: Thay 'materialName' bằng field thực tế trong materialId của bạn */}
+                                        {item.materialId?.name || item.materialId?.materialName || "Material"}: {item.quantity} {item.materialId?.unit}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mô tả dài */}
                     <div className="space-y-4 mb-8 text-gray-500 text-sm leading-relaxed text-justify">
                         {service.longDescription && service.longDescription.length > 0 ? (
                             service.longDescription.map((paragraph, index) => (
@@ -86,13 +104,12 @@ console.log(useParams())
                     </div>
 
                     {/* Danh sách các tính năng / lợi ích */}
-                    <ul className="space-y-3">
+                    <ul className="space-y-3 mb-8">
                         {service.features?.map((feature, index) => (
                             <li
                                 key={index}
                                 className="flex items-start py-2 border-b border-gray-100 last:border-b-0"
                             >
-                                {/* Dấu Check Icon màu xanh */}
                                 <span className="mr-3 mt-0.5 text-blue-600 flex-shrink-0">
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -105,7 +122,6 @@ console.log(useParams())
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                     </svg>
                                 </span>
-                                {/* Nội dung text */}
                                 <span className="text-sm text-gray-600">
                                     {feature}
                                 </span>
@@ -113,8 +129,8 @@ console.log(useParams())
                         ))}
                     </ul>
                     
-                    {/* Nút hành động (Ví dụ: Đặt lịch) */}
-                    <button className="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition duration-300 uppercase text-sm">
+                    {/* Nút hành động */}
+                    <button className="mt-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded shadow-lg transition duration-300 uppercase text-sm tracking-widest">
                         Book This Service
                     </button>
                 </div>

@@ -3,12 +3,12 @@ const mongoose = require('mongoose');
 const materialUsageSchema = new mongoose.Schema({
   taskId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'ServiceTask', // Liên kết với bảng ServiceTasks của Khang
+    ref: 'serviceTasks',
     required: true 
   },
   materialId: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Material', 
+    ref: 'materials', 
     required: true 
   },
   quantityUsed: { 
@@ -22,7 +22,7 @@ const materialUsageSchema = new mongoose.Schema({
   },
   performedBy: { 
     type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User' // Nhân viên thực hiện xuất kho
+    ref: 'users' // Nhân viên thực hiện xuất kho
   }
 }, { timestamps: true });
 

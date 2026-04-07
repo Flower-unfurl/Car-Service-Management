@@ -2,6 +2,7 @@ const Service = require("../schema/serviceSchema");
 
 const getAllServices = async ({ page, limit }) => {
     const skip = page * limit;
+    console.log(skip)
     const services = await Service.find()
         .populate("materials.materialId", "materialName unit category")
         .populate("materialUsages.materialId", "materialName unit category")
