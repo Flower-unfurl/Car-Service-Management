@@ -15,6 +15,9 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 
 const Header = () => {
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { user, logout, loading } = useUser();
     const [services, setServices] = useState([]);
@@ -34,21 +37,49 @@ const Header = () => {
         { to: "/staff/entry", label: "Vehicle Entry" },
     ];
 
-    const operationLinks = user?.role === "ADMIN" ? adminLinks : user?.role === "STAFF" ? staffLinks : [];
+    const operationLinks =
+        user?.role === "ADMIN"
+            ? adminLinks
+            : user?.role === "STAFF"
+              ? staffLinks
+              : [];
+
+    const fetchServices = async (pageToFetch = 1) => {
+        if (loadingMore || !hasMore) return;
+
+        setLoadingMore(true);
+        try {
+            const res = await axios.get(
+                `http://localhost:5000/service/dropdown?page=${pageToFetch}&limit=6`,
+            );
+
+            if (res.data.success) {
+                const { data, hasMore } = res.data;
+
+                setServices((prev) =>
+                    pageToFetch === 1 ? data : [...prev, ...data],
+                );
+                setHasMore(hasMore);
+                setPage(pageToFetch);
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchDropdownData = async () => {
-            try {
-                const res = await axios.get("http://localhost:5000/service/dropdown");
-                if (res.data.success) {
-                    setServices(res.data.data);
-                }
-            } catch (err) {
-                console.error("Lỗi fetch services:", err);
-            }
-        };
-        fetchDropdownData();
+        fetchServices(1);
     }, []);
+
+    const handleScroll = (e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.target;
+
+        if (scrollTop + clientHeight >= scrollHeight - 10) {
+            fetchServices(page + 1);
+        }
+    };
 
     return (
         <header className="mx-auto font-sans">
@@ -58,15 +89,25 @@ const Header = () => {
                     <div className="flex items-center gap-2">
                         <Clock size={14} className="text-blue-600" />
                         <span>
-                            Call us today and make an appointment: +1 522-356-7800
+                            Call us today and make an appointment: +1
+                            522-356-7800
                         </span>
                     </div>
 
                     <div className="hidden md:flex items-center gap-4">
-                        <Facebook size={14} className="cursor-pointer hover:text-blue-600" />
-                        <Twitter size={14} className="cursor-pointer hover:text-blue-400" />
+                        <Facebook
+                            size={14}
+                            className="cursor-pointer hover:text-blue-600"
+                        />
+                        <Twitter
+                            size={14}
+                            className="cursor-pointer hover:text-blue-400"
+                        />
                         <span className="font-bold cursor-pointer">G+</span>
-                        <Instagram size={14} className="cursor-pointer hover:text-pink-500" />
+                        <Instagram
+                            size={14}
+                            className="cursor-pointer hover:text-pink-500"
+                        />
                     </div>
                 </div>
             </div>
@@ -74,7 +115,10 @@ const Header = () => {
             {/* 2. Middle bar: Logo & Contact Info */}
             <div className="w-[75%] mx-auto bg-white py-6 px-4 md:px-10 flex flex-wrap justify-between items-center">
                 {/* Logo */}
-                <Link to="/" className="text-3xl font-black text-[#1e5aa0] tracking-tighter">
+                <Link
+                    to="/"
+                    className="text-3xl font-black text-[#1e5aa0] tracking-tighter"
+                >
                     AUTOREPAIR
                 </Link>
 
@@ -82,11 +126,18 @@ const Header = () => {
                 <div className="hidden lg:flex items-center gap-8">
                     <div className="flex items-center gap-3">
                         <div className="bg-blue-100 p-2 rounded-full">
-                            <Phone size={20} className="text-blue-700 fill-current" />
+                            <Phone
+                                size={20}
+                                className="text-blue-700 fill-current"
+                            />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-800 text-sm">+1 522-356-7800</p>
-                            <p className="text-xs text-gray-500 underline">support@autorepair.com</p>
+                            <p className="font-bold text-gray-800 text-sm">
+                                +1 522-356-7800
+                            </p>
+                            <p className="text-xs text-gray-500 underline">
+                                support@autorepair.com
+                            </p>
                         </div>
                     </div>
 
@@ -95,8 +146,12 @@ const Header = () => {
                             <MapPin size={20} className="text-blue-700" />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-800 text-sm">Phoenix Way, Stretford</p>
-                            <p className="text-xs text-gray-500">Manchester M41 7TB, UK</p>
+                            <p className="font-bold text-gray-800 text-sm">
+                                Phoenix Way, Stretford
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                Manchester M41 7TB, UK
+                            </p>
                         </div>
                     </div>
 
@@ -105,8 +160,12 @@ const Header = () => {
                             <Clock size={20} className="text-blue-700" />
                         </div>
                         <div>
-                            <p className="font-bold text-gray-800 text-sm">8:00 - 18:00</p>
-                            <p className="text-xs text-gray-500">Monday to Friday</p>
+                            <p className="font-bold text-gray-800 text-sm">
+                                8:00 - 18:00
+                            </p>
+                            <p className="text-xs text-gray-500">
+                                Monday to Friday
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -121,11 +180,18 @@ const Header = () => {
             </div>
 
             {/* 3. Navigation Bar */}
-            <nav className={`w-[75%] mx-auto bg-[#1e5aa0] text-white transition-all duration-300 ${isMenuOpen ? "block" : "hidden lg:block"}`}>
+            <nav
+                className={`w-[75%] mx-auto bg-[#1e5aa0] text-white transition-all duration-300 ${isMenuOpen ? "block" : "hidden lg:block"}`}
+            >
                 <div className="max-w-7xl mx-auto px-4 md:px-10 flex flex-col lg:flex-row justify-between items-center">
                     <ul className="flex flex-col lg:flex-row w-full lg:w-auto uppercase font-bold text-sm tracking-wide">
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/" className="flex items-center gap-1 py-4 px-4 w-full">Home</Link>
+                            <Link
+                                to="/"
+                                className="flex items-center gap-1 py-4 px-4 w-full"
+                            >
+                                Home
+                            </Link>
                         </li>
 
                         {/* Services Dropdown */}
@@ -133,16 +199,24 @@ const Header = () => {
                             className="relative hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 group"
                             onMouseEnter={() => setServiceDropdownOpen(true)}
                             onMouseLeave={() => setServiceDropdownOpen(false)}
-                            onClick={() => setServiceDropdownOpen(!serviceDropdownOpen)} // Hỗ trợ mobile
+                            onClick={() =>
+                                setServiceDropdownOpen(!serviceDropdownOpen)
+                            } // Hỗ trợ mobile
                         >
                             <div className="flex items-center gap-1 py-4 px-4 w-full">
                                 Services <ChevronDown size={14} />
                             </div>
-                            
+
                             {serviceDropdownOpen && (
-                                <ul className="absolute top-full left-0 w-48 bg-white text-gray-800 shadow-xl z-[60] border-t-2 border-orange-500">
+                                <ul
+                                    onScroll={handleScroll}
+                                    className="absolute top-full left-0 w-48 bg-white text-gray-800 shadow-xl z-[60] border-t-2 border-orange-500 max-h-60 overflow-y-auto"
+                                >
                                     {services.map((item) => (
-                                        <li key={item._id} className="hover:bg-gray-100 border-b border-gray-100">
+                                        <li
+                                            key={item._id}
+                                            className="hover:bg-gray-100 border-b border-gray-100"
+                                        >
                                             <Link
                                                 to={`/services/${item._id}`}
                                                 className="block px-4 py-3 text-sm font-medium capitalize"
@@ -151,39 +225,76 @@ const Header = () => {
                                             </Link>
                                         </li>
                                     ))}
+
+                                    {loadingMore && (
+                                        <li className="text-center py-2 text-sm text-gray-500">
+                                            Loading...
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </li>
 
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/booking" className="block py-4 px-4 w-full">Đặt lịch</Link>
+                            <Link
+                                to="/booking"
+                                className="block py-4 px-4 w-full"
+                            >
+                                Đặt lịch
+                            </Link>
                         </li>
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/guest-tracking" className="block py-4 px-4 w-full">Theo dõi ticket</Link>
+                            <Link
+                                to="/guest-tracking"
+                                className="block py-4 px-4 w-full"
+                            >
+                                Theo dõi ticket
+                            </Link>
                         </li>
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/lookup" className="block py-4 px-4 w-full">Tra cứu</Link>
+                            <Link
+                                to="/lookup"
+                                className="block py-4 px-4 w-full"
+                            >
+                                Tra cứu
+                            </Link>
                         </li>
 
                         {operationLinks.length > 0 && (
                             <li
                                 className="relative hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400"
-                                onMouseEnter={() => setOperationDropdownOpen(true)}
-                                onMouseLeave={() => setOperationDropdownOpen(false)}
-                                onClick={() => setOperationDropdownOpen((prev) => !prev)}
+                                onMouseEnter={() =>
+                                    setOperationDropdownOpen(true)
+                                }
+                                onMouseLeave={() =>
+                                    setOperationDropdownOpen(false)
+                                }
+                                onClick={() =>
+                                    setOperationDropdownOpen((prev) => !prev)
+                                }
                             >
                                 <div className="flex items-center gap-1 py-4 px-4 w-full">
-                                    {user?.role === "ADMIN" ? "Quản trị" : "Công việc"} <ChevronDown size={14} />
+                                    {user?.role === "ADMIN"
+                                        ? "Quản trị"
+                                        : "Công việc"}{" "}
+                                    <ChevronDown size={14} />
                                 </div>
 
                                 {operationDropdownOpen && (
                                     <ul className="absolute top-full left-0 w-52 bg-white text-gray-800 shadow-xl z-[60] border-t-2 border-orange-500">
                                         {operationLinks.map((item) => (
-                                            <li key={item.to} className="hover:bg-gray-100 border-b border-gray-100">
+                                            <li
+                                                key={item.to}
+                                                className="hover:bg-gray-100 border-b border-gray-100"
+                                            >
                                                 <Link
                                                     to={item.to}
                                                     className="block px-4 py-3 text-sm font-semibold"
-                                                    onClick={() => setOperationDropdownOpen(false)}
+                                                    onClick={() =>
+                                                        setOperationDropdownOpen(
+                                                            false,
+                                                        )
+                                                    }
                                                 >
                                                     {item.label}
                                                 </Link>
@@ -196,13 +307,23 @@ const Header = () => {
 
                         {user?.role === "ADMIN" && (
                             <li className="bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
-                                <Link to="/admin/dispatch" className="block py-4 px-6 w-full">DISPATCH BOARD</Link>
+                                <Link
+                                    to="/admin/dispatch"
+                                    className="block py-4 px-6 w-full"
+                                >
+                                    DISPATCH BOARD
+                                </Link>
                             </li>
                         )}
 
                         {user?.role === "STAFF" && (
                             <li className="bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
-                                <Link to="/staff/tasks" className="block py-4 px-6 w-full">MY TASKS</Link>
+                                <Link
+                                    to="/staff/tasks"
+                                    className="block py-4 px-6 w-full"
+                                >
+                                    MY TASKS
+                                </Link>
                             </li>
                         )}
                     </ul>
@@ -222,7 +343,9 @@ const Header = () => {
                                         <Link
                                             to="/profile"
                                             className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                                            onClick={() => setDropdownOpen(false)}
+                                            onClick={() =>
+                                                setDropdownOpen(false)
+                                            }
                                         >
                                             Hồ sơ
                                         </Link>
