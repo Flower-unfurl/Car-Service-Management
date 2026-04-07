@@ -2,10 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useUser } from "../../hooks/UseUser";
 import {
     Phone,
-    Mail, // Bạn đang import Mail nhưng chưa dùng, có thể cân nhắc xóa hoặc thêm vào UI sau
     MapPin,
     Clock,
-    Search, // Bạn đang import Search nhưng chưa dùng
     Facebook,
     Twitter,
     Instagram,
@@ -22,12 +20,26 @@ const Header = () => {
     const [services, setServices] = useState([]);
     const [serviceDropdownOpen, setServiceDropdownOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [operationDropdownOpen, setOperationDropdownOpen] = useState(false);
+
+    const adminLinks = [
+        { to: "/admin/dispatch", label: "Dispatch" },
+        { to: "/admin/bookings", label: "Bookings" },
+        { to: "/admin/zones", label: "Zones" },
+        { to: "/admin/materials", label: "Materials" },
+    ];
+
+    const staffLinks = [
+        { to: "/staff/tasks", label: "My Tasks" },
+        { to: "/staff/entry", label: "Vehicle Entry" },
+    ];
+
+    const operationLinks = user?.role === "ADMIN" ? adminLinks : user?.role === "STAFF" ? staffLinks : [];
 
     useEffect(() => {
         const fetchDropdownData = async () => {
             try {
                 const res = await axios.get("http://localhost:5000/service/dropdown");
-                console.log(res.data.data)
                 if (res.data.success) {
                     setServices(res.data.data);
                 }
@@ -115,13 +127,7 @@ const Header = () => {
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
                             <Link to="/" className="flex items-center gap-1 py-4 px-4 w-full">Home</Link>
                         </li>
-                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/team" className="flex items-center gap-1 py-4 px-4 w-full">Our Team <ChevronDown size={14} /></Link>
-                        </li>
-                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/works" className="flex items-center gap-1 py-4 px-4 w-full">Works <ChevronDown size={14} /></Link>
-                        </li>
-                        
+
                         {/* Services Dropdown */}
                         <li
                             className="relative hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400 group"
@@ -155,18 +161,47 @@ const Header = () => {
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
                             <Link to="/lookup" className="block py-4 px-4 w-full">Tra cứu</Link>
                         </li>
-                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/blog" className="block py-4 px-4 w-full">Blog</Link>
-                        </li>
-                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/contact" className="block py-4 px-4 w-full">Contact</Link>
-                        </li>
-                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
-                            <Link to="/admin/zones" className="block py-4 px-4 w-full">ADMIN ZONES</Link>
-                        </li>
-                        <li className="bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
-                            <Link to="/staff/entry" className="block py-4 px-6 w-full">VEHICLE ENTRY</Link>
-                        </li>
+
+                        {operationLinks.length > 0 && (
+                            <li
+                                className="relative hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400"
+                                onMouseEnter={() => setOperationDropdownOpen(true)}
+                                onMouseLeave={() => setOperationDropdownOpen(false)}
+                                onClick={() => setOperationDropdownOpen((prev) => !prev)}
+                            >
+                                <div className="flex items-center gap-1 py-4 px-4 w-full">
+                                    {user?.role === "ADMIN" ? "Quản trị" : "Công việc"} <ChevronDown size={14} />
+                                </div>
+
+                                {operationDropdownOpen && (
+                                    <ul className="absolute top-full left-0 w-52 bg-white text-gray-800 shadow-xl z-[60] border-t-2 border-orange-500">
+                                        {operationLinks.map((item) => (
+                                            <li key={item.to} className="hover:bg-gray-100 border-b border-gray-100">
+                                                <Link
+                                                    to={item.to}
+                                                    className="block px-4 py-3 text-sm font-semibold"
+                                                    onClick={() => setOperationDropdownOpen(false)}
+                                                >
+                                                    {item.label}
+                                                </Link>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </li>
+                        )}
+
+                        {user?.role === "ADMIN" && (
+                            <li className="bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
+                                <Link to="/admin/dispatch" className="block py-4 px-6 w-full">DISPATCH BOARD</Link>
+                            </li>
+                        )}
+
+                        {user?.role === "STAFF" && (
+                            <li className="bg-orange-500 hover:bg-orange-600 font-extrabold cursor-pointer transition-all">
+                                <Link to="/staff/tasks" className="block py-4 px-6 w-full">MY TASKS</Link>
+                            </li>
+                        )}
                     </ul>
 
                     {/* User Auth Section */}

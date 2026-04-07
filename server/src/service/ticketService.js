@@ -7,6 +7,14 @@ const ticketService = {
     getAllTickets: async () => {
         return await Ticket.find().populate("inspection").sort({ createdAt: -1 });
     },
+
+    getTicketByQrToken: async (qrToken) => {
+        if (!qrToken) {
+            return null;
+        }
+
+        return await Ticket.findOne({ qrToken }).populate("inspection");
+    },
     
     getTicketById: async (id) => {
         return await Ticket.findById(id).populate("inspection");

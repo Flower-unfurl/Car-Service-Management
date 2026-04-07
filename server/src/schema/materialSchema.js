@@ -21,6 +21,10 @@ const materialSchema = new mongoose.Schema({
     type: Number, 
     default: 10 // Ngưỡng tối thiểu để hệ thống báo động
   },
+  imageUrl: {
+    type: String,
+    default: ""
+  },
   category: { 
     type: String // Ví dụ: 'Dầu nhớt', 'Phụ tùng', 'Hóa chất vệ sinh'
   }

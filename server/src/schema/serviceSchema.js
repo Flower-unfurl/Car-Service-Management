@@ -17,7 +17,41 @@ const serviceSchema = new mongoose.Schema({
     },
     imageUrl: { type: [String], default: [] },
     longDescription: { type: [String], default: [] },
-    features: { type: [String], default: [] }
+    features: { type: [String], default: [] },
+    materials: {
+        type: [
+            {
+                materialId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "materials",
+                    required: true,
+                },
+                quantity: {
+                    type: Number,
+                    required: true,
+                    min: 0.01,
+                },
+            },
+        ],
+        default: [],
+    },
+    materialUsages: {
+        type: [
+            {
+                materialId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "materials",
+                    required: true,
+                },
+                quantity: {
+                    type: Number,
+                    required: true,
+                    min: 0.01,
+                },
+            },
+        ],
+        default: [],
+    },
 }, {
     timestamps: true,
     collection: "services"
