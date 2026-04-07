@@ -325,42 +325,58 @@ const serviceTaskService = {
         const lowStockMaterials = [];
         const materialWarnings = [];
 
-        if (task.serviceId.materials && task.serviceId.materials.length > 0) {
-            for (const materialReq of task.serviceId.materials) {
-                try {
-                    const material = await materialService.getMaterialById(materialReq.materialId);
+        // Support both `materials` and `materialUsages` defined on a service
+        const serviceMaterials = (task.serviceId && Array.isArray(task.serviceId.materials) && task.serviceId.materials.length)
+            ? task.serviceId.materials
+            : (task.serviceId && Array.isArray(task.serviceId.materialUsages) ? task.serviceId.materialUsages : []);
 
-                    if (material.stockQuantity < materialReq.quantity) {
+        if (serviceMaterials && serviceMaterials.length > 0) {
+            for (const materialReq of serviceMaterials) {
+                try {
+                    const rawQty = materialReq && materialReq.quantity;
+                    const qty = Number(rawQty);
+
+                    if (!Number.isFinite(qty) || qty <= 0) {
                         materialWarnings.push({
                             materialId: materialReq.materialId,
-                            materialName: material.materialName,
-                            requiredQuantity: materialReq.quantity,
-                            availableQuantity: material.stockQuantity,
-                            message: `Thiếu vật tư "${material.materialName}": cần ${materialReq.quantity}, còn ${material.stockQuantity}. Task vẫn được đánh dấu COMPLETED.`
+                            message: `Số lượng không hợp lệ cho vật tư ${materialReq.materialId}: ${rawQty}. Bỏ qua.`
                         });
                         continue;
                     }
 
-                    // Deduct stock
+                    const material = await materialService.getMaterialById(materialReq.materialId);
+
+                    if (material.stockQuantity < qty) {
+                        materialWarnings.push({
+                            materialId: materialReq.materialId,
+                            materialName: material.materialName,
+                            requiredQuantity: qty,
+                            availableQuantity: material.stockQuantity,
+                            message: `Thiếu vật tư "${material.materialName}": cần ${qty}, còn ${material.stockQuantity}. Task vẫn được đánh dấu COMPLETED.`
+                        });
+                        continue;
+                    }
+
+                    // Deduct stock (ensures save inside service)
                     const deductionResult = await materialService.deductStock(
                         materialReq.materialId,
-                        materialReq.quantity
+                        qty
                     );
 
-                    // Create material usage record
+                    // Create material usage record (persist the actual quantity used)
                     const materialUsage = new MaterialUsage({
                         taskId: task._id,
                         materialId: materialReq.materialId,
-                        quantityUsed: materialReq.quantity,
+                        quantityUsed: qty,
                         date: new Date(),
-                        performedBy: actor?._id || task.assignedStaffId
+                        performedBy: (actor && actor._id) ? actor._id : task.assignedStaffId
                     });
 
                     await materialUsage.save();
                     materialUsageRecords.push(materialUsage);
 
                     // Track low stock materials
-                    if (deductionResult.isLowStock) {
+                    if (deductionResult && deductionResult.isLowStock) {
                         lowStockMaterials.push({
                             materialId: materialReq.materialId,
                             materialName: deductionResult.material.materialName,
@@ -370,8 +386,8 @@ const serviceTaskService = {
                     }
                 } catch (error) {
                     materialWarnings.push({
-                        materialId: materialReq.materialId,
-                        message: `Không thể trừ vật tư ${materialReq.materialId}: ${error.message}. Task vẫn được đánh dấu COMPLETED.`
+                        materialId: materialReq && materialReq.materialId,
+                        message: `Không thể trừ vật tư ${materialReq && materialReq.materialId}: ${error.message}. Task vẫn được đánh dấu COMPLETED.`
                     });
                 }
             }

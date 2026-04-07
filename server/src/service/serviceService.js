@@ -8,7 +8,7 @@ const getAllServices = async ({ page, limit }) => {
         .populate("materialUsages.materialId", "materialName unit category")
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 });
+        // .sort({ createdAt: -1 });
     const total = await Service.countDocuments();
     return { services, total };
 };

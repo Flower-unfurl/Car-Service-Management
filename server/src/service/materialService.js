@@ -63,29 +63,34 @@ const materialService = {
 
     // Deduct stock (called when task completes)
     deductStock: async (materialId, quantity) => {
-        const material = await Material.findById(materialId);
-        
-        if (!material) {
-            throw new ErrorException(404, "Material not found");
-        }
+            // Use an atomic update to avoid race conditions
+            const qty = Number(quantity);
+            if (!Number.isFinite(qty) || qty <= 0) {
+                throw new ErrorException(400, "Invalid quantity");
+            }
 
-        if (material.stockQuantity < quantity) {
-            throw new ErrorException(400, 
-                `Insufficient stock for ${material.materialName}. Available: ${material.stockQuantity}, Required: ${quantity}`
+            const updated = await Material.findOneAndUpdate(
+                { _id: materialId, stockQuantity: { $gte: qty } },
+                { $inc: { stockQuantity: -qty } },
+                { new: true }
             );
-        }
 
-        material.stockQuantity -= quantity;
-        await material.save();
+            if (!updated) {
+                // Determine if material existed or simply insufficient stock
+                const existing = await Material.findById(materialId);
+                if (!existing) {
+                    throw new ErrorException(404, "Material not found");
+                }
+                throw new ErrorException(400, `Insufficient stock for ${existing.materialName}. Available: ${existing.stockQuantity}, Required: ${qty}`);
+            }
 
-        // Check if stock is now below alert level
-        const isLowStock = material.stockQuantity < material.minAlertLevel;
+            const isLowStock = updated.stockQuantity < updated.minAlertLevel;
 
-        return {
-            material,
-            isLowStock,
-            remainingStock: material.stockQuantity
-        };
+            return {
+                material: updated,
+                isLowStock,
+                remainingStock: updated.stockQuantity
+            };
     },
 
     // Add stock (restock)

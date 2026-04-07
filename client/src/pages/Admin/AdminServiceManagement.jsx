@@ -149,7 +149,7 @@ export default function AdminServiceManagement() {
             setServices(allServices);
             setMaterials(Array.isArray(materialResponse.data) ? materialResponse.data : []);
         } catch {
-            messageApi.error("Không thể tải dữ liệu dịch vụ.");
+            messageApi.error("Unable to load service data.");
         } finally {
             setLoading(false);
         }
@@ -203,10 +203,10 @@ export default function AdminServiceManagement() {
     const handleDelete = async (id) => {
         try {
             await axios.delete(`${API_BASE}/service/${id}`);
-            messageApi.success("Xóa dịch vụ thành công.");
+            messageApi.success("Service deleted successfully.");
             loadData();
         } catch (error) {
-            messageApi.error(error?.response?.data?.message || "Không thể xóa dịch vụ.");
+            messageApi.error(error?.response?.data?.message || "Unable to delete service.");
         }
     };
 
@@ -235,10 +235,10 @@ export default function AdminServiceManagement() {
             setSubmitting(true);
             if (editingService?._id) {
                 await axios.put(`${API_BASE}/service/${editingService._id}`, formData);
-                messageApi.success("Cập nhật dịch vụ thành công.");
+                messageApi.success("Service updated successfully.");
             } else {
                 await axios.post(`${API_BASE}/service`, formData);
-                messageApi.success("Tạo dịch vụ thành công.");
+                messageApi.success("Service created successfully.");
             }
 
             setModalOpen(false);
@@ -249,7 +249,7 @@ export default function AdminServiceManagement() {
             if (error?.errorFields) {
                 return;
             }
-            messageApi.error(error?.response?.data?.message || "Không thể lưu dịch vụ.");
+            messageApi.error(error?.response?.data?.message || "Unable to save service.");
         } finally {
             setSubmitting(false);
         }
@@ -284,7 +284,7 @@ export default function AdminServiceManagement() {
 
     const columns = [
         {
-            title: "Dịch vụ",
+            title: "Service",
             dataIndex: "serviceName",
             key: "serviceName",
             render: (_, record) => (
@@ -297,21 +297,24 @@ export default function AdminServiceManagement() {
             ),
         },
         {
-            title: "Giá",
+            title: "Price",
             dataIndex: "price",
             key: "price",
             width: 120,
-            render: (value) => `${Number(value || 0).toLocaleString("vi-VN")} đ`,
+            render: (value) => `$${Number(value || 0).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            })}`,
         },
         {
-            title: "Hình ảnh",
+            title: "Images",
             dataIndex: "imageUrl",
             key: "imageUrl",
             width: 130,
             render: (value) => {
                 const list = Array.isArray(value) ? value.filter(Boolean) : [];
                 if (!list.length) {
-                    return <Text type="secondary">Chưa có ảnh</Text>;
+                    return <Text type="secondary">No images</Text>;
                 }
 
                 return (
@@ -322,20 +325,20 @@ export default function AdminServiceManagement() {
                             style={{ objectFit: "cover", borderRadius: 8 }}
                             src={toAbsoluteImageUrl(list[0])}
                         />
-                        <Text type="secondary">{list.length} ảnh</Text>
+                        <Text type="secondary">{list.length} image(s)</Text>
                     </Space>
                 );
             },
         },
         {
-            title: "Thời lượng",
+            title: "Duration",
             dataIndex: "durationMinutes",
             key: "durationMinutes",
             width: 120,
-            render: (value) => `${value || 0} phút`,
+            render: (value) => `${value || 0} min`,
         },
         {
-            title: "Material tiêu tốn",
+            title: "Material Usage",
             dataIndex: "materialUsages",
             key: "materialUsages",
             render: (_, record) => {
@@ -345,7 +348,7 @@ export default function AdminServiceManagement() {
                       ? record.materialUsages
                       : [];
                 if (!list.length) {
-                    return <Text type="secondary">Chưa cấu hình</Text>;
+                    return <Text type="secondary">Not configured</Text>;
                 }
 
                 return (
@@ -355,7 +358,7 @@ export default function AdminServiceManagement() {
                             const materialId = material?._id || material;
                             const materialName =
                                 material?.materialName || materialMap.get(materialId)?.materialName || "Material";
-                            const unit = material?.unit || materialMap.get(materialId)?.unit || "đv";
+                            const unit = material?.unit || materialMap.get(materialId)?.unit || "unit";
                             return (
                                 <Tag key={`${materialId}-${idx}`} color="purple">
                                     {materialName}: {item.quantity} {unit}
@@ -367,24 +370,24 @@ export default function AdminServiceManagement() {
             },
         },
         {
-            title: "Thao tác",
+            title: "Actions",
             key: "actions",
             width: 160,
             fixed: "right",
             render: (_, record) => (
                 <Space>
                     <Button size="small" icon={<EditOutlined />} onClick={() => openEditModal(record)}>
-                        Sửa
+                        Edit
                     </Button>
                     <Popconfirm
-                        title="Xóa dịch vụ"
-                        description="Bạn có chắc chắn muốn xóa dịch vụ này?"
-                        okText="Xóa"
-                        cancelText="Hủy"
+                        title="Delete Service"
+                        description="Are you sure you want to delete this service?"
+                        okText="Delete"
+                        cancelText="Cancel"
                         onConfirm={() => handleDelete(record._id)}
                     >
                         <Button danger size="small" icon={<DeleteOutlined />}>
-                            Xóa
+                            Delete
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -403,16 +406,16 @@ export default function AdminServiceManagement() {
                             Service Management
                         </Title>
                         <Text type="secondary">
-                            Quản lý dịch vụ, chi tiết và định mức material tiêu tốn cho từng dịch vụ.
+                            Manage services, details, and material consumption for each service.
                         </Text>
                     </Col>
                     <Col>
                         <Space>
                             <Button icon={<ReloadOutlined />} onClick={loadData}>
-                                Tải lại
+                                Reload
                             </Button>
                             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
-                                Thêm dịch vụ
+                                Add Service
                             </Button>
                         </Space>
                     </Col>
@@ -422,13 +425,13 @@ export default function AdminServiceManagement() {
             <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
                 <Col xs={24} md={8}>
                     <Card style={{ borderRadius: 14 }}>
-                        <Statistic title="Tổng dịch vụ" value={services.length} />
+                        <Statistic title="Total Services" value={services.length} />
                     </Card>
                 </Col>
                 <Col xs={24} md={8}>
                     <Card style={{ borderRadius: 14 }}>
                         <Statistic
-                            title="Dịch vụ có hình ảnh"
+                            title="Services with Images"
                             value={serviceWithImagesCount}
                             valueStyle={{ color: "#1677ff" }}
                         />
@@ -436,7 +439,7 @@ export default function AdminServiceManagement() {
                 </Col>
                 <Col xs={24} md={8}>
                     <Card style={{ borderRadius: 14 }}>
-                        <Statistic title="Liên kết material" value={totalMaterialLinks} />
+                        <Statistic title="Material Links" value={totalMaterialLinks} />
                     </Card>
                 </Col>
             </Row>
@@ -447,7 +450,7 @@ export default function AdminServiceManagement() {
                         <Input
                             allowClear
                             prefix={<SearchOutlined />}
-                            placeholder="Tìm dịch vụ theo tên, mô tả, feature..."
+                            placeholder="Search by name, description, or feature..."
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                         />
@@ -461,13 +464,13 @@ export default function AdminServiceManagement() {
                     loading={loading}
                     scroll={{ x: 980 }}
                     locale={{
-                        emptyText: <Empty description="Chưa có dịch vụ" />,
+                        emptyText: <Empty description="No services found" />,
                     }}
                     pagination={{ pageSize: 8, showSizeChanger: false }}
                     expandable={{
                         expandedRowRender: (record) => (
                             <Descriptions size="small" column={1} bordered>
-                                <Descriptions.Item label="Chi tiết dịch vụ">
+                                <Descriptions.Item label="Service Details">
                                     {getFirstLongDescription(record.longDescription) || "-"}
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Features">
@@ -481,7 +484,7 @@ export default function AdminServiceManagement() {
                                         "-"
                                     )}
                                 </Descriptions.Item>
-                                <Descriptions.Item label="Hình ảnh">
+                                <Descriptions.Item label="Images">
                                     {Array.isArray(record.imageUrl) && record.imageUrl.length > 0 ? (
                                         <Image.PreviewGroup>
                                             <Space size={[8, 8]} wrap>
@@ -497,7 +500,7 @@ export default function AdminServiceManagement() {
                                             </Space>
                                         </Image.PreviewGroup>
                                     ) : (
-                                        <Text type="secondary">Chưa có ảnh</Text>
+                                        <Text type="secondary">No images</Text>
                                     )}
                                 </Descriptions.Item>
                             </Descriptions>
@@ -507,7 +510,7 @@ export default function AdminServiceManagement() {
             </Card>
 
             <Modal
-                title={editingService ? "Cập nhật dịch vụ" : "Thêm dịch vụ mới"}
+                title={editingService ? "Update Service" : "Add New Service"}
                 open={modalOpen}
                 onCancel={() => {
                     setModalOpen(false);
@@ -515,8 +518,8 @@ export default function AdminServiceManagement() {
                     setExistingImages([]);
                 }}
                 onOk={handleSubmit}
-                okText={editingService ? "Lưu thay đổi" : "Tạo mới"}
-                cancelText="Hủy"
+                okText={editingService ? "Save Changes" : "Create"}
+                cancelText="Cancel"
                 width={860}
                 confirmLoading={submitting}
             >
@@ -525,19 +528,19 @@ export default function AdminServiceManagement() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="serviceName"
-                                label="Tên dịch vụ"
-                                rules={[{ required: true, message: "Vui lòng nhập tên dịch vụ" }]}
+                                label="Service Name"
+                                rules={[{ required: true, message: "Please enter service name" }]}
                             >
-                                <Input placeholder="Ví dụ: Bảo dưỡng định kỳ" />
+                                <Input placeholder="Example: Periodic Maintenance" />
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="description"
-                                label="Mô tả ngắn"
-                                rules={[{ required: true, message: "Vui lòng nhập mô tả" }]}
+                                label="Short Description"
+                                rules={[{ required: true, message: "Please enter description" }]}
                             >
-                                <Input placeholder="Mô tả ngắn gọn dịch vụ" />
+                                <Input placeholder="Brief service description" />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -546,8 +549,8 @@ export default function AdminServiceManagement() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="price"
-                                label="Giá (đ)"
-                                rules={[{ required: true, message: "Nhập giá" }]}
+                                label="Price ($)"
+                                rules={[{ required: true, message: "Please enter price" }]}
                             >
                                 <InputNumber min={0} style={{ width: "100%" }} />
                             </Form.Item>
@@ -555,8 +558,8 @@ export default function AdminServiceManagement() {
                         <Col xs={24} md={12}>
                             <Form.Item
                                 name="durationMinutes"
-                                label="Thời lượng (phút)"
-                                rules={[{ required: true, message: "Nhập thời lượng" }]}
+                                label="Duration (minutes)"
+                                rules={[{ required: true, message: "Please enter duration" }]}
                             >
                                 <InputNumber min={1} style={{ width: "100%" }} />
                             </Form.Item>
@@ -565,15 +568,15 @@ export default function AdminServiceManagement() {
 
                     <Row gutter={14}>
                         <Col xs={24}>
-                            <Form.Item name="longDescription" label="Chi tiết dịch vụ">
-                                <Input placeholder="Ví dụ: Quy trình kiểm tra và bảo dưỡng tổng thể hệ thống phanh" />
+                            <Form.Item name="longDescription" label="Service Details">
+                                <Input placeholder="Example: Full brake system inspection and maintenance workflow" />
                             </Form.Item>
                         </Col>
                     </Row>
 
                     <Card
                         size="small"
-                        title="Danh sách công việc (Features)"
+                        title="Task List (Features)"
                         style={{ borderRadius: 12, marginBottom: 12 }}
                     >
                         <Form.List name="features">
@@ -588,10 +591,10 @@ export default function AdminServiceManagement() {
                                             <Form.Item
                                                 {...field}
                                                 name={field.name}
-                                                rules={[{ required: true, message: "Nhập nội dung feature" }]}
+                                                rules={[{ required: true, message: "Please enter feature content" }]}
                                                 style={{ minWidth: 420 }}
                                             >
-                                                <Input placeholder={`Công việc ${index + 1}`} />
+                                                <Input placeholder={`Task ${index + 1}`} />
                                             </Form.Item>
                                             <Button
                                                 danger
@@ -602,7 +605,7 @@ export default function AdminServiceManagement() {
                                         </Space>
                                     ))}
                                     <Button type="dashed" icon={<PlusOutlined />} onClick={() => add("")}>
-                                        Thêm feature
+                                        Add Feature
                                     </Button>
                                 </>
                             )}
@@ -611,12 +614,12 @@ export default function AdminServiceManagement() {
 
                     <Card
                         size="small"
-                        title="Hình ảnh dịch vụ"
+                        title="Service Images"
                         style={{ borderRadius: 12, marginBottom: 12 }}
                     >
                         <Space direction="vertical" size={12} style={{ width: "100%" }}>
                             <div>
-                                <Text strong>Ảnh hiện có</Text>
+                                <Text strong>Existing Images</Text>
                                 <div style={{ marginTop: 8 }}>
                                     {existingImages.length > 0 ? (
                                         <Space size={[10, 10]} wrap>
@@ -639,19 +642,19 @@ export default function AdminServiceManagement() {
                                                                 );
                                                             }}
                                                         >
-                                                            Xóa ảnh
+                                                            Remove Image
                                                         </Button>
                                                     </div>
                                                 </div>
                                             ))}
                                         </Space>
                                     ) : (
-                                        <Text type="secondary">Chưa có ảnh nào được lưu.</Text>
+                                        <Text type="secondary">No saved images yet.</Text>
                                     )}
                                 </div>
                             </div>
 
-                            <Form.Item label="Tải ảnh từ máy" style={{ marginBottom: 0 }}>
+                            <Form.Item label="Upload Images from Device" style={{ marginBottom: 0 }}>
                                 <Upload
                                     accept="image/*"
                                     listType="picture-card"
@@ -674,7 +677,7 @@ export default function AdminServiceManagement() {
                             <Form.List name="imageUrls">
                                 {(fields, { add, remove }) => (
                                     <>
-                                        <Text strong>Gắn URL ảnh để hệ thống tự tải về server/uploads</Text>
+                                        <Text strong>Add image URLs for auto-download to server/uploads</Text>
                                         {fields.map((field) => (
                                             <Space
                                                 key={field.key}
@@ -684,7 +687,7 @@ export default function AdminServiceManagement() {
                                                 <Form.Item
                                                     {...field}
                                                     name={field.name}
-                                                    rules={[{ type: "url", message: "URL không hợp lệ" }]}
+                                                    rules={[{ type: "url", message: "Invalid URL" }]}
                                                     style={{ minWidth: 420 }}
                                                 >
                                                     <Input placeholder="https://example.com/image.jpg" />
@@ -693,7 +696,7 @@ export default function AdminServiceManagement() {
                                             </Space>
                                         ))}
                                         <Button type="dashed" icon={<PlusOutlined />} onClick={() => add("")}>
-                                            Thêm URL ảnh
+                                            Add Image URL
                                         </Button>
                                     </>
                                 )}
@@ -701,7 +704,7 @@ export default function AdminServiceManagement() {
                         </Space>
                     </Card>
 
-                    <Card size="small" title="Material tiêu tốn theo dịch vụ" style={{ borderRadius: 12 }}>
+                    <Card size="small" title="Material Usage per Service" style={{ borderRadius: 12 }}>
                         <Form.List name="materialUsages">
                             {(fields, { add, remove }) => (
                                 <>
@@ -714,12 +717,12 @@ export default function AdminServiceManagement() {
                                             <Form.Item
                                                 {...field}
                                                 name={[field.name, "materialId"]}
-                                                rules={[{ required: true, message: "Chọn material" }]}
+                                                rules={[{ required: true, message: "Please select a material" }]}
                                                 style={{ minWidth: 280 }}
                                             >
                                                 <Select
                                                     showSearch
-                                                    placeholder="Chọn material"
+                                                    placeholder="Select material"
                                                     options={materialOptions}
                                                     optionFilterProp="label"
                                                 />
@@ -727,15 +730,15 @@ export default function AdminServiceManagement() {
                                             <Form.Item
                                                 {...field}
                                                 name={[field.name, "quantity"]}
-                                                rules={[{ required: true, message: "Nhập số lượng" }]}
+                                                rules={[{ required: true, message: "Please enter quantity" }]}
                                             >
-                                                <InputNumber min={0.01} step={0.01} placeholder="Số lượng" />
+                                                <InputNumber min={0.01} step={0.01} placeholder="Quantity" />
                                             </Form.Item>
                                             <Button danger icon={<DeleteOutlined />} onClick={() => remove(field.name)} />
                                         </Space>
                                     ))}
                                     <Button type="dashed" icon={<PlusOutlined />} onClick={() => add()}>
-                                        Thêm material tiêu tốn
+                                        Add Material Usage
                                     </Button>
                                 </>
                             )}
