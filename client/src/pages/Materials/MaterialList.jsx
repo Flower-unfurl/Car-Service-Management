@@ -163,10 +163,10 @@ export default function MaterialList() {
             }
 
             if (editingId) {
-                await axios.put(`${API_BASE}/materials/${editingId}`, payload);
+                await axios.put(`${API_BASE}/materials/${editingId}`, payload, { withCredentials: true });
                 setBanner({ type: "success", message: "Cập nhật vật tư thành công." });
             } else {
-                await axios.post(`${API_BASE}/materials`, payload);
+                await axios.post(`${API_BASE}/materials`, payload, { withCredentials: true });
                 setBanner({ type: "success", message: "Thêm vật tư thành công." });
             }
 
@@ -188,7 +188,7 @@ export default function MaterialList() {
         }
 
         try {
-            await axios.delete(`${API_BASE}/materials/${id}`);
+            await axios.delete(`${API_BASE}/materials/${id}`, { withCredentials: true });
             setBanner({ type: "success", message: "Đã xóa vật tư." });
             fetchData();
         } catch (error) {
@@ -207,7 +207,7 @@ export default function MaterialList() {
 
         try {
             setCreatingCategory(true);
-            const response = await axios.post(`${API_BASE}/material-categories`, { name });
+            const response = await axios.post(`${API_BASE}/material-categories`, { name }, { withCredentials: true });
             const created = response?.data?.data || response?.data;
 
             setCategories((prev) => {

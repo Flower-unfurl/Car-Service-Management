@@ -32,7 +32,11 @@ function AppRoute() {
                 <Route path="/guest-tracking" element={<GuestTrackingPage />} />
                 <Route path="/staff/entry" element={<StaffVehicleEntry />} />
                 <Route path="/staff/tasks" element={<StaffTaskBoard />} />
-                <Route path="/inspection/:ticketId" element={<InspectionDetailPage />} />
+                <Route path="/staff/materials" element={<MaterialList />} />
+                <Route path="/staff/lookup" element={<LookupPage />} />
+                {/* <Route path="/staff/services" element={<AdminServiceManagement />} /> */}
+                <Route path="/staff/invoices" element={<AdminInvoiceManagement />} />
+                <Route path="/staff/inspection/:ticketId" element={<InspectionDetailPage />} />
                 {/* <Route path="/materials" element={<MaterialList />} /> */}
             </Route>
             <Route path="/admin" element={<AdminLayout />}>

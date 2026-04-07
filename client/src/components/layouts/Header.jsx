@@ -32,6 +32,10 @@ const Header = () => {
     const staffLinks = [
         { to: "/staff/tasks", label: "My Tasks" },
         { to: "/staff/entry", label: "Vehicle Entry" },
+        // { to: "/staff/materials", label: "Materials" },
+        { to: "/staff/lookup", label: "Lookup" },
+        // { to: "/staff/services", label: "Services" },
+        { to: "/staff/invoices", label: "Invoices" },
     ];
 
     const operationLinks = user?.role === "ADMIN" ? adminLinks : user?.role === "STAFF" ? staffLinks : [];
