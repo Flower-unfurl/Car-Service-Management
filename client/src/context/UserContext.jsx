@@ -10,7 +10,10 @@ export function UserProvider({ children }) {
     useEffect(() => {
         axios
             .get("http://localhost:5000/auth/me", { withCredentials: true })
-            .then((res) => setUser(res.data.user))
+            .then((res) => {
+                console.log(res.data)
+                setUser(res.data.user)
+            })
             .catch(() => setUser(null))
             .finally(() => setLoading(false));
     }, []);
