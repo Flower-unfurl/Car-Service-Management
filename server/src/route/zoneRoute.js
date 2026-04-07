@@ -25,7 +25,7 @@ zoneRoute.get("/available", async (req, res, next) => {
 });
 
 // ================= CREATE =================
-zoneRoute.post("/", authToken, authRole("admin"), async (req, res, next) => {
+zoneRoute.post("/", authToken, authRole("ADMIN", "STAFF"), async (req, res, next) => {
     try {
         const { zoneName, capacity } = req.body;
 
@@ -53,7 +53,7 @@ zoneRoute.post("/", authToken, authRole("admin"), async (req, res, next) => {
 });
 
 // ================= UPDATE =================
-zoneRoute.put("/:id", authToken, authRole("admin"), async (req, res, next) => {
+zoneRoute.put("/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res, next) => {
     try {
         const zone = await Zone.findByIdAndUpdate(
             req.params.id,
@@ -79,7 +79,7 @@ zoneRoute.put("/:id", authToken, authRole("admin"), async (req, res, next) => {
 });
 
 // ================= DELETE =================
-zoneRoute.delete("/:id", authToken, authRole("admin"), async (req, res, next) => {
+zoneRoute.delete("/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res, next) => {
     try {
         const zone = await Zone.findByIdAndDelete(req.params.id);
 

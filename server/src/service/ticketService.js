@@ -1,6 +1,7 @@
 const Ticket = require("../schema/ticketSchema");
 const Order = require("../schema/order");
 const Service = require("../schema/serviceSchema");
+const Zone = require("../schema/zoneSchema");
 const crypto = require("crypto");
 const zoneService = require("./zoneService");
 const inspectionService = require("./inspectionService");
@@ -240,6 +241,38 @@ const ticketService = {
         }
 
         await order.save();
+
+        const ticket = await Ticket.findById(ticketId);
+    if (!ticket) return order;
+
+    // ================= GIẢI PHÓNG ZONE =================
+    // Chỉ khi thanh toán xong + chưa checkout
+    if (!ticket.checkoutAt) {
+        ticket.checkoutAt = new Date();
+        ticket.status = "COMPLETED";
+        await ticket.save();
+
+        // 🔥 tìm zone theo zoneName
+        const zone = await Zone.findOne({ zoneName: ticket.zone });
+
+        if (zone) {
+            zone.occupied = Math.max(0, zone.occupied - 1);
+
+            // cập nhật lại availableSlots
+            zone.availableSlots = zone.capacity - zone.occupied;
+
+            // update status zone
+            if (zone.occupied === 0) {
+                zone.status = "AVAILABLE";
+            } else if (zone.occupied >= zone.capacity) {
+                zone.status = "FULL";
+            } else {
+                zone.status = "AVAILABLE";
+            }
+
+            await zone.save();
+        }
+    }
         return order;
     },
 
