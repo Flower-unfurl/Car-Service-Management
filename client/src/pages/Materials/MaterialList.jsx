@@ -68,8 +68,8 @@ export default function MaterialList() {
             setBanner({ type: "", message: "" });
 
             const [materialsResponse, categoriesResponse] = await Promise.all([
-                axios.get(`${API_BASE}/materials`),
-                axios.get(`${API_BASE}/material-categories`),
+                axios.get(`${API_BASE}/materials`, { withCredentials: true }),
+                axios.get(`${API_BASE}/material-categories`, { withCredentials: true }),
             ]);
 
             setMaterials(extractArrayData(materialsResponse));

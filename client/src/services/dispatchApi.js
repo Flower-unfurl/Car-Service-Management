@@ -12,9 +12,11 @@ export const getErrorMessage = (error, fallback = "Đã có lỗi xảy ra") => 
 };
 
 const dispatchApi = {
-    getServiceDropdown: async () => {
-        const res = await api.get("/service/dropdown");
-        return unwrapData(res);
+    getServiceDropdown: async ({ page = 1, limit = 4 } = {}) => {
+        const res = await api.get("/service/dropdown", {
+            params: { page, limit }
+        });
+        return res?.data;
     },
 
     getTickets: async () => {

@@ -6,12 +6,17 @@ import {
     CheckCircle, QrCode, AlertCircle, Calendar, ArrowRight, ShieldCheck, Cpu, Download
 } from 'lucide-react';
 
+const SERVICE_DROPDOWN_LIMIT = 3;
+
 export default function StaffVehicleEntry() {
     const [step, setStep] = useState(1);
     const [isSimulatingAI, setIsSimulatingAI] = useState(false);
     const [availableZones, setAvailableZones] = useState([]);
     const [brands, setBrands] = useState([]);
     const [serviceOptions, setServiceOptions] = useState([]);
+    const [servicePage, setServicePage] = useState(1);
+    const [serviceHasMore, setServiceHasMore] = useState(true);
+    const [serviceLoadingMore, setServiceLoadingMore] = useState(false);
     const [selectedServiceIds, setSelectedServiceIds] = useState([]);
     const [selectedBrandModels, setSelectedBrandModels] = useState([]);
     
@@ -48,16 +53,80 @@ export default function StaffVehicleEntry() {
 
     const fetchInitialData = async () => {
         try {
-            const [zonesRes, brandsRes, services] = await Promise.all([
+            const [zonesRes, brandsRes, dropdownRes] = await Promise.all([
                 axios.get("http://localhost:5000/zone/available"),
                 axios.get("http://localhost:5000/brand"),
-                dispatchApi.getServiceDropdown()
+                dispatchApi.getServiceDropdown({
+                    page: 1,
+                    limit: SERVICE_DROPDOWN_LIMIT
+                })
             ]);
+
+            const initialServices = Array.isArray(dropdownRes?.data)
+                ? dropdownRes.data
+                : [];
+
             setAvailableZones(zonesRes.data.data);
             setBrands(brandsRes.data.data);
-            setServiceOptions(Array.isArray(services) ? services : []);
+            setServiceOptions(initialServices);
+            setServicePage(1);
+            setServiceHasMore(Boolean(dropdownRes?.hasMore));
         } catch (err) {
             console.error("Failed to load initial data", err);
+        }
+    };
+
+    const fetchMoreServices = async (pageToFetch) => {
+        if (serviceLoadingMore) return;
+        if (pageToFetch !== 1 && !serviceHasMore) return;
+
+        setServiceLoadingMore(true);
+        try {
+            const dropdownRes = await dispatchApi.getServiceDropdown({
+                page: pageToFetch,
+                limit: SERVICE_DROPDOWN_LIMIT
+            });
+
+            const nextServices = Array.isArray(dropdownRes?.data)
+                ? dropdownRes.data
+                : [];
+
+            setServiceOptions((prev) => {
+                if (pageToFetch === 1) {
+                    return nextServices;
+                }
+
+                const existingIds = new Set(prev.map((item) => item._id));
+                const dedupedNewItems = nextServices.filter((item) => !existingIds.has(item._id));
+
+                return [...prev, ...dedupedNewItems];
+            });
+            setServicePage(pageToFetch);
+            setServiceHasMore(Boolean(dropdownRes?.hasMore));
+        } catch (err) {
+            console.error("Failed to load more services", err);
+        } finally {
+            setServiceLoadingMore(false);
+        }
+    };
+
+    const handleServiceScroll = (event) => {
+        const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+        const reachedBottom = scrollTop + clientHeight >= scrollHeight - 10;
+
+        if (reachedBottom) {
+            fetchMoreServices(servicePage + 1);
+        }
+    };
+
+    const handleServiceWheel = (event) => {
+        if (event.deltaY <= 0) return;
+
+        const { scrollHeight, clientHeight } = event.currentTarget;
+        const notScrollableYet = scrollHeight <= clientHeight;
+
+        if (notScrollableYet) {
+            fetchMoreServices(servicePage + 1);
         }
     };
 
@@ -543,7 +612,11 @@ Please keep this token to track the service status online.
                                                 Danh sach nay se duoc snapshot gia vao ServiceOrder va sinh ServiceTask theo stepOrder.
                                             </p>
 
-                                            <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                            <div
+                                                onScroll={handleServiceScroll}
+                                                onWheel={handleServiceWheel}
+                                                className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3"
+                                            >
                                                 {serviceOptions.length > 0 ? (
                                                     serviceOptions.map((service) => {
                                                         const checked = selectedServiceIds.includes(service._id);
@@ -565,6 +638,14 @@ Please keep this token to track the service status online.
                                                     })
                                                 ) : (
                                                     <p className="text-xs text-gray-500">Khong co dich vu nao trong he thong.</p>
+                                                )}
+
+                                                {serviceLoadingMore && (
+                                                    <p className="text-xs text-gray-500 text-center py-2">Dang tai them dich vu...</p>
+                                                )}
+
+                                                {!serviceLoadingMore && serviceHasMore && serviceOptions.length > 0 && (
+                                                    <p className="text-[11px] text-gray-400 text-center py-1">Cuon xuong de tai them</p>
                                                 )}
                                             </div>
 

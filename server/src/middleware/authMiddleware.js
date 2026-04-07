@@ -8,7 +8,7 @@ const ErrorException = require("../util/errorException");
 
 const authToken = async (req, res, next) => {
     const token = req.cookies?.accessToken;
-
+    console.log("booking route: ", token);
     if (!token) {
         return res.status(401).json({
             message: "Please login to continue!"

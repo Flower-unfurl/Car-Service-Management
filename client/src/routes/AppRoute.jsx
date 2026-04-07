@@ -33,7 +33,7 @@ function AppRoute() {
                 <Route path="/staff/entry" element={<StaffVehicleEntry />} />
                 <Route path="/staff/tasks" element={<StaffTaskBoard />} />
                 <Route path="/inspection/:ticketId" element={<InspectionDetailPage />} />
-                <Route path="/materials" element={<MaterialList />} />
+                {/* <Route path="/materials" element={<MaterialList />} /> */}
             </Route>
             <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<Navigate to="dispatch" replace />} />

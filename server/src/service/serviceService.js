@@ -13,9 +13,19 @@ const getAllServices = async ({ page, limit }) => {
     return { services, total };
 };
 
-const getAllServicesForDropdown = async () => {
-    // Chỉ lấy _id và serviceName để tối ưu hiệu năng cho dropdown
-    return await Service.find({}, "_id serviceName slug");
+const getAllServicesForDropdown = async (page = 1, limit = 4) => {
+    const skip = (page - 1) * limit;
+
+    const services = await Service.find({}, "_id serviceName")
+        .skip(skip)
+        .limit(limit);
+
+    const total = await Service.countDocuments();
+
+    return {
+        data: services,
+        hasMore: skip + services.length < total
+    };
 };
 
 const getServiceById = async (id) => {
@@ -31,9 +41,9 @@ const createService = async (serviceData) => {
 };
 
 const updateService = async (id, updateData) => {
-    return await Service.findByIdAndUpdate(id, updateData, { 
-        new: true, 
-        runValidators: true 
+    return await Service.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true
     });
 };
 
