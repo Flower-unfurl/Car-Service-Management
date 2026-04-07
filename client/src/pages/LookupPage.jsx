@@ -1,34 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
-import { Search, Car, Calendar, Wrench, CircleDollarSign, XCircle, Settings, Clock } from 'lucide-react';
+import { Search, Phone, Calendar, Wrench, CircleDollarSign, XCircle, Settings, Clock, User } from 'lucide-react';
+import { UserContext } from '../context/UserContext';
 
 const SettingsIcon = ({ size }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
 );
 
 const LookupPage = () => {
-    const [licensePlate, setLicensePlate] = useState('');
+    const { user, loading: contextLoading } = useContext(UserContext);
+    const [phone, setPhone] = useState('');
+    const [searchDate, setSearchDate] = useState('');
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [cancellingId, setCancellingId] = useState(null);
     const [searched, setSearched] = useState(false);
     const [message, setMessage] = useState(null);
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
-        if (!licensePlate.trim()) return;
+    const isStaffOrAdmin = user && (user.role === 'ADMIN' || user.role === 'STAFF');
 
+    // Debugging logs
+    useEffect(() => {
+        console.log("Current User Context:", user);
+        console.log("Context Loading Status:", contextLoading);
+    }, [user, contextLoading]);
+
+    // Tự động tải lịch hẹn cá nhân khi vừa vào trang
+    useEffect(() => {
+        if (!contextLoading && user) {
+            console.log("Triggering fetchMyAppointments because user is logged in.");
+            fetchMyAppointments();
+        }
+    }, [user, contextLoading]);
+
+    const fetchMyAppointments = async () => {
         setLoading(true);
-        setMessage(null);
         try {
-            const response = await axios.get(`http://localhost:5000/booking/lookup/${licensePlate.trim()}`);
+            console.log("LookupPage: Fetching my appointments...");
+            const response = await axios.get('http://localhost:5000/booking/my-appointments', { withCredentials: true });
             setAppointments(response.data);
             setSearched(true);
+            console.log("LookupPage: Fetch success, found:", response.data.length);
         } catch (error) {
-            console.error('Error searching appointments:', error);
-            setMessage({ type: 'error', text: 'Có lỗi xảy ra khi tra cứu. Vui lòng thử lại.' });
+            console.error('LookupPage: Error fetching my-appointments:', error);
+            setMessage({ type: 'error', text: 'Vui lòng đăng nhập để xem lịch hẹn của bạn.' });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        setMessage(null);
+
+        if (isStaffOrAdmin) {
+            if (!phone.trim()) return;
+            setLoading(true);
+            try {
+                const response = await axios.get(`http://localhost:5000/booking/lookup/${phone.trim()}`, { withCredentials: true });
+                setAppointments(response.data);
+                setSearched(true);
+            } catch (error) {
+                console.error('Error searching appointments:', error);
+                setMessage({ type: 'error', text: error.response?.data?.message || 'Có lỗi xảy ra khi tra cứu.' });
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // Guest tìm theo ngày
+            if (!searchDate) return;
+            setLoading(true);
+            try {
+                const response = await axios.get(`http://localhost:5000/booking/my-appointments/search?date=${searchDate}`, { withCredentials: true });
+                setAppointments(response.data);
+                setSearched(true);
+            } catch (error) {
+                console.error('Error searching my-appointments:', error);
+                setMessage({ type: 'error', text: error.response?.data?.message || 'Có lỗi xảy ra khi tra cứu.' });
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -37,7 +88,7 @@ const LookupPage = () => {
 
         setCancellingId(id);
         try {
-            await axios.put(`http://localhost:5000/booking/${id}`, { status: 'CANCELLED' });
+            await axios.put(`http://localhost:5000/booking/${id}`, { status: 'CANCELLED' }, { withCredentials: true });
             setMessage({ type: 'success', text: 'Hủy lịch hẹn thành công!' });
             // Refresh local state
             setAppointments(prev => prev.map(appt =>
@@ -65,8 +116,14 @@ const LookupPage = () => {
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto">
                 <div className="text-center mb-12">
-                    <h1 className="text-3xl font-black text-[#1e5aa0] uppercase tracking-tight mb-2">Tra Cứu Lịch Hẹn</h1>
-                    <p className="text-gray-600">Nhập biển số xe của bạn để xem lịch sử và trạng thái dịch vụ</p>
+                    <h1 className="text-4xl font-black text-[#1e5aa0] uppercase tracking-tight mb-2">
+                        {isStaffOrAdmin ? 'Quản Lý Tra Cứu' : 'Lịch Hẹn Của Tôi'}
+                    </h1>
+                    <p className="text-gray-600 font-medium">
+                        {isStaffOrAdmin
+                            ? 'Tra cứu và quản lý lịch hẹn của khách hàng theo số điện thoại'
+                            : 'Xem lịch sử và quản lý các dịch vụ bạn đã đặt'}
+                    </p>
                 </div>
 
                 {/* Search Bar */}
@@ -74,16 +131,30 @@ const LookupPage = () => {
                     <form onSubmit={handleSearch} className="flex gap-3">
                         <div className="relative flex-grow">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Car className="h-5 w-5 text-gray-400" />
+                                {isStaffOrAdmin ? (
+                                    <Phone className="h-5 w-5 text-gray-400" />
+                                ) : (
+                                    <Calendar className="h-5 w-5 text-gray-400" />
+                                )}
                             </div>
-                            <input
-                                type="text"
-                                value={licensePlate}
-                                onChange={(e) => setLicensePlate(e.target.value)}
-                                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1e5aa0] focus:border-[#1e5aa0] sm:text-sm transition-all"
-                                placeholder="Ví dụ: 60-A1 12345"
-                                required
-                            />
+                            {isStaffOrAdmin ? (
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1e5aa0] focus:border-[#1e5aa0] sm:text-sm transition-all"
+                                    placeholder="Ví dụ: 0987654321"
+                                    required
+                                />
+                            ) : (
+                                <input
+                                    type="date"
+                                    value={searchDate}
+                                    onChange={(e) => setSearchDate(e.target.value)}
+                                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1e5aa0] focus:border-[#1e5aa0] sm:text-sm transition-all"
+                                    required
+                                />
+                            )}
                         </div>
                         <button
                             type="submit"
@@ -184,7 +255,11 @@ const LookupPage = () => {
                         ) : (
                             <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-gray-200">
                                 <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                                <p className="text-gray-500 font-medium">Không tìm thấy lịch hẹn nào cho biển số này.</p>
+                                <p className="text-gray-500 font-medium">
+                                    {isStaffOrAdmin
+                                        ? 'Không tìm thấy lịch hẹn nào cho số điện thoại này.'
+                                        : 'Bạn không có lịch hẹn nào vào ngày này.'}
+                                </p>
                             </div>
                         )}
                     </div>

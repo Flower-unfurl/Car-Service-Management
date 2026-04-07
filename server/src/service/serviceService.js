@@ -41,9 +41,9 @@ const createService = async (serviceData) => {
 };
 
 const updateService = async (id, updateData) => {
-    return await Service.findByIdAndUpdate(id, updateData, { 
-        new: true, 
-        runValidators: true 
+    return await Service.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true
     });
 };
 
