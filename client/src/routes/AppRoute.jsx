@@ -17,6 +17,8 @@ import SignUpPage from "../pages/SignupPage";
 import StaffTaskBoard from "../pages/Staff/StaffTaskBoard";
 import InspectionDetailPage from "../pages/InspectionDetailPage";
 import AdminServiceManagement from "../pages/Admin/AdminServiceManagement";
+import AdminInvoiceManagement from "../pages/Admin/AdminInvoiceManagement";
+import GuestTrackingPage from "../pages/GuestTrackingPage";
 
 function AppRoute() {
     return (
@@ -27,6 +29,7 @@ function AppRoute() {
                 <Route path="/services/:id" element={<ServiceDetail />} />
                 <Route path="/booking" element={<BookingPage />} />
                 <Route path="/lookup" element={<LookupPage />} />
+                <Route path="/guest-tracking" element={<GuestTrackingPage />} />
                 <Route path="/staff/entry" element={<StaffVehicleEntry />} />
                 <Route path="/staff/tasks" element={<StaffTaskBoard />} />
                 <Route path="/inspection/:ticketId" element={<InspectionDetailPage />} />
@@ -40,6 +43,7 @@ function AppRoute() {
                 <Route path="materials" element={<MaterialList />} />
                 <Route path="lookup" element={<LookupPage />} />
                 <Route path="services" element={<AdminServiceManagement />} />
+                <Route path="invoices" element={<AdminInvoiceManagement />} />
             </Route>
             <Route>
                 <Route path="/signin/*" element={<SignInPage />} />

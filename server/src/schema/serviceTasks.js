@@ -27,6 +27,13 @@ const serviceTaskSchema = new mongoose.Schema(
 			ref: "users",
 			default: null
 		},
+		supportStaffIds: {
+			type: [{
+				type: mongoose.Schema.Types.ObjectId,
+				ref: "users"
+			}],
+			default: []
+		},
 		startTime: {
 			type: Date,
 			default: null

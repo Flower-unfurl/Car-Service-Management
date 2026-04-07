@@ -247,7 +247,8 @@ serviceTaskRoute.post("/:id/complete", authToken, authRole("ADMIN", "STAFF"), as
                 task: result.task,
                 materialUsageRecords: result.materialUsageRecords,
                 lowStockAlerts: result.lowStockMaterials,
-                materialWarnings: result.materialWarnings
+                materialWarnings: result.materialWarnings,
+                ticketReadyForPickup: result.ticketReadyForPickup
             }
         });
     } catch (error) {
@@ -312,6 +313,41 @@ serviceTaskRoute.put("/:id/assign", authToken, authRole("ADMIN"), async (req, re
         res.status(200).json({
             success: true,
             message: "Staff assigned successfully",
+            data: task
+        });
+    } catch (error) {
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// Add support staff to task (Admin or involved Staff)
+serviceTaskRoute.put("/:id/support", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { supportStaffId } = req.body;
+
+        if (!supportStaffId) {
+            return res.status(400).json({
+                success: false,
+                message: "Support staff ID is required"
+            });
+        }
+
+        const task = await serviceTaskService.addSupportStaff(id, supportStaffId, req.user);
+
+        // Notify support staff
+        try {
+            socketService.notifyStaffAssigned(supportStaffId, task);
+        } catch (socketError) {
+            console.error("Socket notification error:", socketError);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Support staff added successfully",
             data: task
         });
     } catch (error) {

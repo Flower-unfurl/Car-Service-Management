@@ -19,6 +19,16 @@ const orderSchema = new mongoose.Schema(
 				ref: "services",
 				required: true
 			},
+			serviceNameSnapshot: {
+				type: String,
+				required: true,
+				trim: true
+			},
+			durationMinutesSnapshot: {
+				type: Number,
+				required: true,
+				min: 0
+			},
 			quantity: {
 				type: Number,
 				default: 1,
@@ -47,6 +57,28 @@ const orderSchema = new mongoose.Schema(
 			required: true,
 			min: 0,
 			default: 0
+		},
+		includeParkingFee: {
+			type: Boolean,
+			default: false
+		},
+		invoiceStatus: {
+			type: String,
+			enum: ["DRAFT", "CONFIRMED"],
+			default: "DRAFT"
+		},
+		isPublicForGuest: {
+			type: Boolean,
+			default: false
+		},
+		invoiceConfirmedAt: {
+			type: Date,
+			default: null
+		},
+		invoiceConfirmedBy: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "users",
+			default: null
 		},
 		paymentStatus: {
 			type: String,

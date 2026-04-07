@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import dispatchApi, { getErrorMessage } from '../services/dispatchApi';
 import { 
     Camera, Car, User, Hash, FileCheck, ClipboardList, 
     CheckCircle, QrCode, AlertCircle, Calendar, ArrowRight, ShieldCheck, Cpu, Download
@@ -10,12 +11,15 @@ export default function StaffVehicleEntry() {
     const [isSimulatingAI, setIsSimulatingAI] = useState(false);
     const [availableZones, setAvailableZones] = useState([]);
     const [brands, setBrands] = useState([]);
+    const [serviceOptions, setServiceOptions] = useState([]);
+    const [selectedServiceIds, setSelectedServiceIds] = useState([]);
     const [selectedBrandModels, setSelectedBrandModels] = useState([]);
     
     // Step 1 State: Ticket
     const [ticketData, setTicketData] = useState({
         licensePlate: '',
         vehicleType: 'CAR',
+        ticketType: 'SERVICE',
         brand: '',
         model: '',
         color: '',
@@ -44,12 +48,14 @@ export default function StaffVehicleEntry() {
 
     const fetchInitialData = async () => {
         try {
-            const [zonesRes, brandsRes] = await Promise.all([
+            const [zonesRes, brandsRes, services] = await Promise.all([
                 axios.get("http://localhost:5000/zone/available"),
-                axios.get("http://localhost:5000/brand")
+                axios.get("http://localhost:5000/brand"),
+                dispatchApi.getServiceDropdown()
             ]);
             setAvailableZones(zonesRes.data.data);
             setBrands(brandsRes.data.data);
+            setServiceOptions(Array.isArray(services) ? services : []);
         } catch (err) {
             console.error("Failed to load initial data", err);
         }
@@ -75,6 +81,10 @@ export default function StaffVehicleEntry() {
     const handleTicketChange = (e) => {
         const { name, value } = e.target;
         setTicketData(prev => ({ ...prev, [name]: value }));
+
+        if (name === "ticketType" && value !== "SERVICE") {
+            setSelectedServiceIds([]);
+        }
         
         if (name === "brand") {
             const brandObj = brands.find(b => b.brandName.toUpperCase() === value.toUpperCase());
@@ -117,6 +127,12 @@ export default function StaffVehicleEntry() {
     const submitInspection = async (e) => {
         e.preventDefault();
         setGlobalError("");
+
+        if (ticketData.ticketType === "SERVICE" && selectedServiceIds.length === 0) {
+            setGlobalError("Vui lòng chọn ít nhất 1 dịch vụ cho phiếu SERVICE.");
+            return;
+        }
+
         setIsLoading(true);
         try {
             const payload = {
@@ -124,20 +140,25 @@ export default function StaffVehicleEntry() {
                 inspectionData: {
                     ...inspectionData,
                     damages
-                }
+                },
+                serviceIds: ticketData.ticketType === "SERVICE" ? selectedServiceIds : []
             };
-            const res = await axios.post(
-                "http://localhost:5000/ticket/full-entry", 
-                payload, 
-                { withCredentials: true }
-            );
-            setCreatedTicket(res.data.data); // Ticket đã bao gồm inspection
+            const data = await dispatchApi.createFullEntry(payload);
+            setCreatedTicket(data);
             setStep(3); // Hoàn tất
         } catch (error) {
-            setGlobalError(error.response?.data?.message || "Failed to complete entry process.");
+            setGlobalError(getErrorMessage(error, "Failed to complete entry process."));
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const toggleService = (serviceId) => {
+        setSelectedServiceIds((prev) => (
+            prev.includes(serviceId)
+                ? prev.filter((id) => id !== serviceId)
+                : [...prev, serviceId]
+        ));
     };
 
     const handlePrintTicket = () => {
@@ -282,7 +303,7 @@ Please keep this token to track the service status online.
                                         {ticketErrors.licensePlate && <p className="text-red-500 text-xs mt-1">{ticketErrors.licensePlate}</p>}
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5 flex items-center gap-1"><Car size={14}/> Type</label>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5 flex items-center gap-1"><Car size={14}/> Vehicle Type</label>
                                         <select 
                                             name="vehicleType" value={ticketData.vehicleType} onChange={handleTicketChange}
                                             className="w-full px-4 py-3 rounded-xl border bg-gray-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#1e5aa0]/20 border-gray-200 focus:border-[#1e5aa0]"
@@ -291,6 +312,26 @@ Please keep this token to track the service status online.
                                             <option value="BIKE">Motorbike</option>
                                             <option value="TRUCK">Truck</option>
                                         </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1.5">Ticket Type</label>
+                                        <select
+                                            name="ticketType"
+                                            value={ticketData.ticketType}
+                                            onChange={handleTicketChange}
+                                            className="w-full px-4 py-3 rounded-xl border bg-gray-50 outline-none transition focus:bg-white focus:ring-2 focus:ring-[#1e5aa0]/20 border-gray-200 focus:border-[#1e5aa0]"
+                                        >
+                                            <option value="SERVICE">SERVICE</option>
+                                            <option value="PARKING">PARKING</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-end">
+                                        <p className="text-[10px] text-gray-400 leading-tight italic px-2 pb-2">
+                                            SERVICE yêu cầu đồng kiểm và chọn dịch vụ.
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -399,11 +440,11 @@ Please keep this token to track the service status online.
                             <div className="mb-8 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-center justify-between">
                                 <div>
                                     <p className="text-xs text-blue-500 font-bold uppercase mb-1">Current Ticket</p>
-                                    <h3 className="text-lg font-bold text-blue-900 tracking-wider font-mono">{createdTicket?.licensePlate}</h3>
+                                    <h3 className="text-lg font-bold text-blue-900 tracking-wider font-mono">{createdTicket?.licensePlate || ticketData.licensePlate || "N/A"}</h3>
                                 </div>
                                 <div className="text-right">
                                     <span className="inline-block bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap">
-                                        Zone: {createdTicket?.zone}
+                                        Zone: {createdTicket?.zone || "Pending"}
                                     </span>
                                 </div>
                             </div>
@@ -490,6 +531,50 @@ Please keep this token to track the service status online.
                                     )}
                                 </div>
 
+                                {ticketData.ticketType === "SERVICE" && (
+                                    <>
+                                        <hr className="border-gray-100" />
+                                        <div>
+                                            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-3">
+                                                <FileCheck size={18} className="text-[#1e5aa0]" />
+                                                Chon dich vu cho xe
+                                            </h3>
+                                            <p className="text-xs text-gray-500 mb-3">
+                                                Danh sach nay se duoc snapshot gia vao ServiceOrder va sinh ServiceTask theo stepOrder.
+                                            </p>
+
+                                            <div className="grid grid-cols-1 gap-2 max-h-56 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                                {serviceOptions.length > 0 ? (
+                                                    serviceOptions.map((service) => {
+                                                        const checked = selectedServiceIds.includes(service._id);
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                key={service._id}
+                                                                onClick={() => toggleService(service._id)}
+                                                                className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                                                                    checked
+                                                                        ? "border-[#1e5aa0] bg-blue-50 text-blue-900"
+                                                                        : "border-gray-200 bg-white text-gray-700 hover:border-blue-300"
+                                                                }`}
+                                                            >
+                                                                <span className="font-semibold">{service.serviceName || "Unnamed service"}</span>
+                                                                <span className="text-xs font-bold">{checked ? "Da chon" : "Chon"}</span>
+                                                            </button>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <p className="text-xs text-gray-500">Khong co dich vu nao trong he thong.</p>
+                                                )}
+                                            </div>
+
+                                            <p className="mt-2 text-xs text-gray-600">
+                                                Da chon: <b>{selectedServiceIds.length}</b> dich vu
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="flex gap-4 mt-6">
                                     <button 
                                         type="button" 
@@ -536,7 +621,22 @@ Please keep this token to track the service status online.
                                 </button>
                                 <button 
                                     onClick={() => {
-                                        setStep(1); setTicketData({...ticketData, licensePlate: '', brand: '', color: '', customerName: '', customerPhone: ''}); setCreatedTicket(null); setDamages([]); 
+                                        setStep(1);
+                                        setTicketData({
+                                            licensePlate: '',
+                                            vehicleType: 'CAR',
+                                            ticketType: 'SERVICE',
+                                            brand: '',
+                                            model: '',
+                                            color: '',
+                                            customerName: '',
+                                            customerPhone: '',
+                                            zoneId: ''
+                                        });
+                                        setInspectionData({ odometer: '', fuelLevel: '50', condition: '' });
+                                        setSelectedServiceIds([]);
+                                        setCreatedTicket(null);
+                                        setDamages([]);
                                     }}
                                     className="text-[#1e5aa0] font-bold text-sm uppercase tracking-wider hover:bg-blue-50 px-6 py-3 rounded-full transition"
                                 >
