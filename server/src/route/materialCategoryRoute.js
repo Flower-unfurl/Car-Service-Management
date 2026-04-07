@@ -2,12 +2,13 @@ var express = require("express");
 var router = express.Router();
 
 const MaterialCategory = require("../schema/materialCategory");
+const { authRole, authToken } = require("../middleware/authMiddleware");
 
 
 // =========================
 // 1. GET ALL
 // =========================
-router.get("/",    async (req, res) => {
+router.get("/", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         let data = await MaterialCategory.find().sort({ createdAt: -1 });
         res.send(data);
@@ -20,7 +21,7 @@ router.get("/",    async (req, res) => {
 // =========================
 // 2. CREATE
 // =========================
-router.post("/",    async (req, res) => {
+router.post("/", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         let { name } = req.body;
 
@@ -46,7 +47,7 @@ router.post("/",    async (req, res) => {
 // =========================
 // 3. UPDATE
 // =========================
-router.put("/:id",    async (req, res) => {
+router.put("/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         let { name } = req.body;
 
@@ -69,7 +70,7 @@ router.put("/:id",    async (req, res) => {
 // =========================
 // 4. DELETE
 // =========================
-router.delete("/:id",    async (req, res) => {
+router.delete("/:id", authToken, authRole("ADMIN", "STAFF"), async (req, res) => {
     try {
         let item = await MaterialCategory.findById(req.params.id);
 
