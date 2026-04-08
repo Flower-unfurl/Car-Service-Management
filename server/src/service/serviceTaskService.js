@@ -96,11 +96,11 @@ const serviceTaskService = {
     // Get single task by ID
     getTaskById: async (taskId) => {
         const task = await withTaskDetails(ServiceTask.findById(taskId));
-        
+
         if (!task) {
             throw new ErrorException(404, "Service task not found");
         }
-        
+
         return task;
     },
 
@@ -167,61 +167,56 @@ const serviceTaskService = {
         throw new ErrorException(403, "Access denied");
     },
 
-    // Create tasks automatically when Order is created
-    createTasksFromOrder: async (orderId, { defaultAssignedStaffId = null } = {}) => {
+    createTasksFromOrder: async (
+        orderId,
+        { defaultAssignedStaffId = null, session } = {}
+    ) => {
+
         const order = await Order.findById(orderId)
+            .session(session)
             .populate("services.serviceId");
 
         if (!order) {
             throw new ErrorException(404, "Order not found");
         }
 
-        if (!order.services || order.services.length === 0) {
-            throw new ErrorException(400, "Order has no services");
-        }
+        const existingTasksCount = await ServiceTask
+            .countDocuments({ ticketId: order.ticketId })
+            .session(session);
 
-        const existingTasksCount = await ServiceTask.countDocuments({ ticketId: order.ticketId });
         if (existingTasksCount > 0) {
-            throw new ErrorException(409, "Service tasks already generated for this ticket");
+            throw new ErrorException(409, "Service tasks already generated");
         }
 
         const tasks = [];
         let stepOrder = 1;
 
-        // Create tasks in order
         for (const orderService of order.services) {
             const service = orderService.serviceId;
-            if (!service?._id) {
-                continue;
-            }
-            
-            // Create task for this service
+            if (!service?._id) continue;
+
             const newTask = new ServiceTask({
                 ticketId: order.ticketId,
                 serviceId: service._id,
-                stepOrder: stepOrder,
+                stepOrder,
                 status: "PENDING",
                 assignedStaffId: defaultAssignedStaffId || null
             });
 
-            const savedTask = await newTask.save();
+            const savedTask = await newTask.save({ session });
             tasks.push(savedTask);
             stepOrder++;
         }
 
-        if (!tasks.length) {
-            throw new ErrorException(400, "Order has no valid services to create tasks");
-        }
+        await ticketService.updateTicketStatus(order.ticketId, "IN_SERVICE", session);
 
-        await ticketService.updateTicketStatus(order.ticketId, "IN_SERVICE");
-
-        return await withTaskDetails(ServiceTask.find({ _id: { $in: tasks.map((task) => task._id) } })).sort({ stepOrder: 1 });
+        return tasks;
     },
 
     // Validate if task can be started (check sequential order)
     canStartTask: async (taskId) => {
         const task = await ServiceTask.findById(taskId);
-        
+
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }
@@ -261,7 +256,7 @@ const serviceTaskService = {
         assertAllowedTaskOperator(actor);
 
         const validation = await serviceTaskService.canStartTask(taskId);
-        
+
         if (!validation.canStart) {
             throw new ErrorException(403, validation.reason);
         }
@@ -417,7 +412,7 @@ const serviceTaskService = {
     // Assign staff to a task
     assignStaff: async (taskId, staffId) => {
         const task = await ServiceTask.findById(taskId);
-        
+
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }
@@ -664,7 +659,7 @@ const serviceTaskService = {
     // Delete task
     deleteTask: async (taskId) => {
         const task = await ServiceTask.findByIdAndDelete(taskId);
-        
+
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }

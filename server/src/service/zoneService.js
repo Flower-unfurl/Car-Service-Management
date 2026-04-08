@@ -47,8 +47,8 @@ const zoneService = {
         return await Zone.findByIdAndDelete(id);
     },
 
-    occupyZone: async (id) => {
-        const zone = await Zone.findById(id);
+    occupyZone: async (id, session) => {
+        const zone = await Zone.findById(id).session(session);
         if (!zone) throw new Error("Zone không tồn tại");
         if (zone.occupied >= zone.capacity || zone.status !== "AVAILABLE") {
             throw new Error("Khu vực này đã đầy hoặc đang không khả dụng");
@@ -59,7 +59,7 @@ const zoneService = {
         if (zone.availableSlots === 0) {
             zone.status = "FULL";
         }
-        await zone.save();
+        await zone.save({ session });
         return zone;
     },
 

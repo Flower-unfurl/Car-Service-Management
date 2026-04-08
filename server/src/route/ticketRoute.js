@@ -9,6 +9,7 @@ const ErrorException = require("../util/errorException");
 const zoneService = require("../service/zoneService");
 const inspectionService = require("../service/inspectionService");
 const serviceTaskService = require("../service/serviceTaskService");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
@@ -133,49 +134,71 @@ router.post("/", authRole("ADMIN", "STAFF"), async (req, res, next) => {
 
 // POST /full-entry — tạo ticket + đồng kiểm + order + tasks cùng lúc
 router.post("/full-entry", authRole("ADMIN", "STAFF"), async (req, res, next) => {
+	const session = await mongoose.startSession();
+
 	try {
+		session.startTransaction();
+
 		const { ticketData = {}, inspectionData, serviceIds = [] } = req.body;
 		const actor = req.user || null;
 
-		// 1. Validate & tạo ticket
 		const { zoneId, licensePlate } = ticketData;
+
 		if (!licensePlate) throw new ErrorException(400, "Vui lòng nhập biển số xe");
 		if (!zoneId) throw new ErrorException(400, "Chưa chọn khu vực (Zone)");
 
 		const ticketType = normalizeTicketType(ticketData.ticketType);
 		if (!ticketType) throw new ErrorException(400, "Loại phiếu không hợp lệ.");
 
-		const zone = await zoneService.occupyZone(zoneId);
+		//  1. Occupy zone (PHẢI truyền session)
+		const zone = await zoneService.occupyZone(zoneId, session);
+
 		const qrToken = crypto.randomBytes(16).toString("hex");
 
-		const ticket = await new Ticket({
+		//  2. Create ticket
+		const ticket = await Ticket.create([{
 			...ticketData,
 			ticketType,
 			zone: zone.zoneName,
 			qrToken,
 			createdBy: actor?._id || null
-		}).save();
+		}], { session });
 
-		// 2. SERVICE: bắt buộc đồng kiểm
+		const createdTicket = ticket[0];
+
 		let createdOrder = null;
 		let createdTasks = [];
 
-		if (ticket.ticketType === SERVICE_TICKET_TYPE) {
-			if (!inspectionData) throw new ErrorException(400, "Inspection data is required for SERVICE tickets");
+		//  SERVICE FLOW
+		if (createdTicket.ticketType === SERVICE_TICKET_TYPE) {
+			if (!inspectionData) {
+				throw new ErrorException(400, "Inspection data is required for SERVICE tickets");
+			}
 
-			await inspectionService.createInspection(ticket._id, inspectionData, actor?._id || null);
+			// 3. Create inspection
+			await inspectionService.createInspection(
+				createdTicket._id,
+				inspectionData,
+				actor?._id || null,
+				session
+			);
 
-			// 3. Tạo order + tasks nếu đã chọn dịch vụ
+			//  4. Service flow
 			const ids = normalizeServiceIds(serviceIds);
+
 			if (ids.length > 0) {
-				const foundServices = await Service.find({ _id: { $in: ids } })
-					.select("serviceName price durationMinutes");
+				const foundServices = await Service.find({
+					_id: { $in: ids }
+				}).session(session);
 
-				const serviceMap = new Map(foundServices.map((s) => [String(s._id), s]));
-				const missing = ids.filter((id) => !serviceMap.has(id));
-				if (missing.length) throw new ErrorException(400, `Một số dịch vụ không hợp lệ: ${missing.join(", ")}`);
+				const serviceMap = new Map(foundServices.map(s => [String(s._id), s]));
 
-				const snapshotServices = ids.map((id) => {
+				const missing = ids.filter(id => !serviceMap.has(id));
+				if (missing.length) {
+					throw new ErrorException(400, `Invalid services: ${missing.join(", ")}`);
+				}
+
+				const snapshotServices = ids.map(id => {
 					const s = serviceMap.get(id);
 					return {
 						serviceId: s._id,
@@ -186,36 +209,62 @@ router.post("/full-entry", authRole("ADMIN", "STAFF"), async (req, res, next) =>
 					};
 				});
 
-				const totalServiceFee = snapshotServices.reduce((sum, i) => sum + i.price * i.quantity, 0);
+				const totalServiceFee = snapshotServices.reduce(
+					(sum, i) => sum + i.price * i.quantity,
+					0
+				);
 
-				createdOrder = await Order.create({
-					ticketId: ticket._id,
-					customerPhone: ticket.customerPhone || "N/A",
+				//  5. Create order
+				createdOrder = await Order.create([{
+					ticketId: createdTicket._id,
+					customerPhone: createdTicket.customerPhone || "N/A",
 					services: snapshotServices,
-					parkingFee: Number(ticket.parkingFee || 0),
+					parkingFee: Number(createdTicket.parkingFee || 0),
 					totalServiceFee,
 					includeParkingFee: false,
 					totalAmount: totalServiceFee,
 					invoiceStatus: "DRAFT",
 					isPublicForGuest: false,
-					invoiceConfirmedAt: null,
-					invoiceConfirmedBy: null,
 					paymentStatus: "UNPAID"
-				});
+				}], { session });
 
-				createdTasks = await serviceTaskService.createTasksFromOrder(createdOrder._id, {
-					defaultAssignedStaffId: shouldAssignDefaultStaff(actor) ? actor._id : null
-				});
+				console.log("Created Order:", createdOrder[0]._);
+				createdOrder = createdOrder[0];
+				//  6. Create tasks
+				createdTasks = await serviceTaskService.createTasksFromOrder(
+					createdOrder._id,
+					{
+						defaultAssignedStaffId: shouldAssignDefaultStaff(actor)
+							? actor._id
+							: null,
+						session
+					}
+				);
 			}
 		}
 
-		// 4. Trả kết quả
-		const result = (await Ticket.findById(ticket._id).populate("inspection")).toObject();
-		if (createdOrder) result.serviceOrder = createdOrder;
-		if (createdTasks.length) result.serviceTasks = createdTasks;
+		//  COMMIT
+		await session.commitTransaction();
+		session.endSession();
 
-		res.status(201).json({ message: "Hoàn tất tiếp nhận và đồng kiểm xe", data: result });
+		const result = await Ticket.findById(createdTicket._id)
+			.populate("inspection");
+
+		const finalResult = result.toObject();
+
+		if (createdOrder) finalResult.serviceOrder = createdOrder;
+		if (createdTasks.length) finalResult.serviceTasks = createdTasks;
+
+		res.status(201).json({
+			message: "Hoàn tất tiếp nhận và đồng kiểm xe",
+			data: finalResult
+		});
+
 	} catch (err) {
+		//  ROLLBACK
+		await session.abortTransaction();
+		session.endSession();
+
 		next(err);
 	}
 });

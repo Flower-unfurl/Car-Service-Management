@@ -10,20 +10,23 @@ const inspectionService = {
         return await Inspection.findOne({ ticket: ticketId });
     },
 
-    createInspection: async (ticketId, inspectionData, userId) => {
+    createInspection: async (ticketId, inspectionData, userId, session) => {
         const newInspection = new Inspection({
             ...inspectionData,
             ticket: ticketId,
             inspectedBy: userId
         });
 
-        const savedInspection = await newInspection.save();
+        const savedInspection = await newInspection.save({ session });
 
-        // Cập nhật lại ticket, đổi status và gắn ID inspection
-        await Ticket.findByIdAndUpdate(ticketId, { 
-            inspection: savedInspection._id,
-            status: "IN_SERVICE"
-        });
+        await Ticket.findByIdAndUpdate(
+            ticketId,
+            {
+                inspection: savedInspection._id,
+                status: "IN_SERVICE"
+            },
+            { session }
+        );
 
         return savedInspection;
     }
