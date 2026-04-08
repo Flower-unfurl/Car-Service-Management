@@ -12,14 +12,14 @@ const brandSchema = new mongoose.Schema(
 );
 
 // Pre-save hook for normalization
-brandSchema.pre("save", function(next) {
-    if (this.brandName) {
-        this.brandName = this.brandName.trim().toUpperCase();
-    }
-    if (this.models && this.models.length > 0) {
-        this.models = this.models.map(model => model.trim().toUpperCase());
-    }
-    next();
-});
+// brandSchema.pre("save", function(req, res, next) {
+//     if (this.brandName) {
+//         this.brandName = this.brandName.trim().toUpperCase();
+//     }
+//     if (this.models && this.models.length > 0) {
+//         this.models = this.models.map(model => model.trim().toUpperCase());
+//     }
+//     next();
+// });
 
 module.exports = mongoose.model("brands", brandSchema);
