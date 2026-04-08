@@ -104,18 +104,13 @@ const dispatchApi = {
         return unwrapData(res);
     },
 
-    updateInvoiceDraft: async (ticketId, includeParkingFee) => {
-        const res = await api.patch(`/ticket/${ticketId}/invoice-draft`, { includeParkingFee });
+    confirmInvoice: async (ticketId, includeParkingFee) => {
+        const res = await api.post(`/ticket/${ticketId}/invoice-confirm`, { includeParkingFee });
         return unwrapData(res);
     },
 
-    confirmInvoice: async (ticketId) => {
-        const res = await api.post(`/ticket/${ticketId}/invoice-confirm`);
-        return unwrapData(res);
-    },
-
-    confirmInvoicePayment: async (ticketId) => {
-        const res = await api.post(`/ticket/${ticketId}/payment-confirm`);
+    confirmInvoicePayment: async (ticketId, includeParkingFee) => {
+        const res = await api.post(`/ticket/${ticketId}/payment-confirm`, { includeParkingFee });
         return unwrapData(res);
     },
 

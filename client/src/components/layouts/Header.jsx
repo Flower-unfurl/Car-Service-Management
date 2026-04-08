@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useUser } from "../../hooks/UseUser";
 import {
     Phone,
     MapPin,
     Clock,
+    Bell,
     Facebook,
     Twitter,
     Instagram,
@@ -24,12 +25,20 @@ const Header = () => {
     const [serviceDropdownOpen, setServiceDropdownOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [operationDropdownOpen, setOperationDropdownOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const loadingMoreRef = useRef(false);
+    const hasMoreRef = useRef(true);
+    const pageRef = useRef(1);
+
+    const canViewInternalNotifications =
+        user?.role === "ADMIN" || user?.role === "STAFF";
 
     const adminLinks = [
         { to: "/admin/dispatch", label: "Dispatch" },
         { to: "/admin/bookings", label: "Bookings" },
         { to: "/admin/zones", label: "Zones" },
         { to: "/admin/materials", label: "Materials" },
+        { to: "/notifications", label: "Notifications" },
     ];
 
     const staffLinks = [
@@ -39,6 +48,7 @@ const Header = () => {
         { to: "/staff/lookup", label: "Lookup" },
         // { to: "/staff/services", label: "Services" },
         { to: "/staff/invoices", label: "Invoices" },
+        { to: "/notifications", label: "Notifications" },
     ];
 
     const operationLinks =
@@ -48,9 +58,10 @@ const Header = () => {
               ? staffLinks
               : [];
 
-    const fetchServices = async (pageToFetch = 1) => {
-        if (loadingMore || !hasMore) return;
+    const fetchServices = useCallback(async (pageToFetch = 1) => {
+        if (loadingMoreRef.current || !hasMoreRef.current) return;
 
+        loadingMoreRef.current = true;
         setLoadingMore(true);
         try {
             const res = await axios.get(
@@ -65,23 +76,68 @@ const Header = () => {
                 );
                 setHasMore(hasMore);
                 setPage(pageToFetch);
+                hasMoreRef.current = hasMore;
+                pageRef.current = pageToFetch;
             }
         } catch (err) {
             console.error(err);
         } finally {
+            loadingMoreRef.current = false;
             setLoadingMore(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        hasMoreRef.current = hasMore;
+    }, [hasMore]);
+
+    useEffect(() => {
+        pageRef.current = page;
+    }, [page]);
 
     useEffect(() => {
         fetchServices(1);
-    }, []);
+    }, [fetchServices]);
+
+    useEffect(() => {
+        if (!user || !canViewInternalNotifications) {
+            setUnreadCount(0);
+            return;
+        }
+
+        let active = true;
+
+        const fetchUnreadCount = async () => {
+            try {
+                const response = await axios.get(
+                    "http://localhost:5000/notification/unread-count",
+                    { withCredentials: true },
+                );
+
+                if (active) {
+                    setUnreadCount(Number(response?.data?.data?.count || 0));
+                }
+            } catch {
+                if (active) {
+                    setUnreadCount(0);
+                }
+            }
+        };
+
+        fetchUnreadCount();
+        const timer = setInterval(fetchUnreadCount, 10000);
+
+        return () => {
+            active = false;
+            clearInterval(timer);
+        };
+    }, [user, canViewInternalNotifications]);
 
     const handleScroll = (e) => {
         const { scrollTop, scrollHeight, clientHeight } = e.target;
 
         if (scrollTop + clientHeight >= scrollHeight - 10) {
-            fetchServices(page + 1);
+            fetchServices(pageRef.current + 1);
         }
     };
 
@@ -257,6 +313,14 @@ const Header = () => {
                         </li>
                         <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
                             <Link
+                                to="/notifications"
+                                className="block py-4 px-4 w-full"
+                            >
+                                Notifications
+                            </Link>
+                        </li>
+                        <li className="hover:bg-blue-700 cursor-pointer border-b lg:border-none border-blue-400">
+                            <Link
                                 to="/lookup"
                                 className="block py-4 px-4 w-full"
                             >
@@ -335,7 +399,20 @@ const Header = () => {
                     {/* User Auth Section */}
                     <div className="py-4 px-4 relative w-full lg:w-auto text-center lg:text-left">
                         {loading ? null : user ? (
-                            <div className="relative inline-block">
+                            <div className="relative inline-flex items-center gap-3">
+                                <Link
+                                    to="/notifications"
+                                    className="relative inline-flex items-center justify-center rounded-full p-2 hover:bg-blue-700"
+                                    aria-label="Notifications"
+                                >
+                                    <Bell size={18} />
+                                    {canViewInternalNotifications && unreadCount > 0 ? (
+                                        <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-5 text-white">
+                                            {unreadCount > 99 ? "99+" : unreadCount}
+                                        </span>
+                                    ) : null}
+                                </Link>
+
                                 <span
                                     className="cursor-pointer font-semibold hover:bg-blue-700 px-2 py-1 rounded"
                                     onClick={() => setDropdownOpen((v) => !v)}

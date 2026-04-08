@@ -22,7 +22,6 @@ export default function AdminInvoiceManagement() {
     const [invoiceBundle, setInvoiceBundle] = useState(null);
     const [loadingTickets, setLoadingTickets] = useState(true);
     const [loadingInvoice, setLoadingInvoice] = useState(false);
-    const [savingDraft, setSavingDraft] = useState(false);
     const [confirming, setConfirming] = useState(false);
     const [confirmingPayment, setConfirmingPayment] = useState(false);
 
@@ -111,33 +110,12 @@ export default function AdminInvoiceManagement() {
         return `http://localhost:5000/ticket/guest/${ticket.qrToken}/invoice`;
     }, [ticket?.qrToken]);
 
-    const handleSaveDraft = async () => {
-        if (!selectedTicketId) return;
-
-        setSavingDraft(true);
-        try {
-            const updatedInvoice = await dispatchApi.updateInvoiceDraft(selectedTicketId, includeParkingFee);
-            setInvoiceBundle((prev) => ({
-                ticket: prev?.ticket || ticket,
-                invoice: updatedInvoice,
-            }));
-            setBanner({ type: "success", message: "Da cap nhat invoice draft" });
-        } catch (error) {
-            setBanner({
-                type: "error",
-                message: getErrorMessage(error, "Khong the cap nhat invoice draft"),
-            });
-        } finally {
-            setSavingDraft(false);
-        }
-    };
-
     const handleConfirmInvoice = async () => {
         if (!selectedTicketId) return;
 
         setConfirming(true);
         try {
-            const confirmedInvoice = await dispatchApi.confirmInvoice(selectedTicketId);
+            const confirmedInvoice = await dispatchApi.confirmInvoice(selectedTicketId, includeParkingFee);
             setInvoiceBundle((prev) => ({
                 ticket: prev?.ticket || ticket,
                 invoice: confirmedInvoice,
@@ -161,7 +139,7 @@ export default function AdminInvoiceManagement() {
 
         setConfirmingPayment(true);
         try {
-            const paidInvoice = await dispatchApi.confirmInvoicePayment(selectedTicketId);
+            const paidInvoice = await dispatchApi.confirmInvoicePayment(selectedTicketId, includeParkingFee);
             setInvoiceBundle((prev) => ({
                 ticket: prev?.ticket || ticket,
                 invoice: paidInvoice,
@@ -197,7 +175,7 @@ export default function AdminInvoiceManagement() {
                             Invoice Control
                         </p>
                         <h1 className="mt-2 text-2xl font-black uppercase tracking-wide md:text-3xl">
-                            Draft va Confirm hoa don
+                            Confirm hoa don
                         </h1>
                         <p className="mt-2 text-sm text-sky-100">
                             Ap dung cho phieu SERVICE da co ServiceOrder. Admin co the tinh phi gui xe va cong khai hoa don theo QR.
@@ -263,7 +241,7 @@ export default function AdminInvoiceManagement() {
                 </section>
             ) : !invoice ? (
                 <section className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-                    Chon ticket de xem invoice draft.
+                    Chon ticket de xem hoa don.
                 </section>
             ) : (
                 <section className="grid gap-6 lg:grid-cols-[1.2fr_minmax(0,1fr)]">
@@ -326,14 +304,6 @@ export default function AdminInvoiceManagement() {
                         </div>
 
                         <div className="mt-5 grid gap-2">
-                            <button
-                                type="button"
-                                onClick={handleSaveDraft}
-                                disabled={savingDraft || invoice.invoiceStatus === "CONFIRMED"}
-                                className="rounded-xl bg-[#1e5aa0] px-4 py-2 text-sm font-bold text-white hover:bg-[#16487e] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {savingDraft ? "Dang luu..." : "Luu draft"}
-                            </button>
                             <button
                                 type="button"
                                 onClick={handleConfirmInvoice}

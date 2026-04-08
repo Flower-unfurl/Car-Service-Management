@@ -77,25 +77,11 @@ const getTicketInvoice = async (req, res, next) => {
     }
 };
 
-const updateInvoiceDraft = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { includeParkingFee } = req.body;
-
-        const invoice = await ticketService.updateInvoiceDraft(id, includeParkingFee);
-        res.status(200).json({
-            message: "Cập nhật invoice draft thành công",
-            data: invoice
-        });
-    } catch (error) {
-        next(error);
-    }
-};
-
 const confirmInvoice = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const invoice = await ticketService.confirmInvoice(id, req.user?._id || null);
+        const { includeParkingFee } = req.body;
+        const invoice = await ticketService.confirmInvoice(id, req.user?._id || null, includeParkingFee);
 
         res.status(200).json({
             message: "Xác nhận hóa đơn thành công",
@@ -109,7 +95,8 @@ const confirmInvoice = async (req, res, next) => {
 const confirmInvoicePayment = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const invoice = await ticketService.confirmInvoicePayment(id, req.user?._id || null);
+        const { includeParkingFee } = req.body;
+        const invoice = await ticketService.confirmInvoicePayment(id, req.user?._id || null, includeParkingFee);
 
         res.status(200).json({
             message: "Xác nhận thanh toán tiền mặt thành công",
@@ -141,7 +128,6 @@ module.exports = {
     createFullEntry,
     addServicesToTicketFlow,
     getTicketInvoice,
-    updateInvoiceDraft,
     confirmInvoice,
     confirmInvoicePayment,
     getGuestInvoiceByQrToken
