@@ -224,28 +224,7 @@ const ticketService = {
     };
 },
 
-    updateInvoiceDraft: async (ticketId, includeParkingFee) => {
-        const order = await Order.findOne({ ticketId }).sort({ createdAt: -1 });
-        if (!order) {
-            throw new ErrorException(404, "Service order not found for this ticket");
-        }
-
-        if (order.invoiceStatus === "CONFIRMED") {
-            throw new ErrorException(409, "Invoice already confirmed");
-        }
-
-        order.includeParkingFee = Boolean(includeParkingFee);
-        order.totalAmount = order.totalServiceFee + (order.includeParkingFee ? order.parkingFee : 0);
-        order.invoiceStatus = "DRAFT";
-        order.isPublicForGuest = false;
-        order.invoiceConfirmedAt = null;
-        order.invoiceConfirmedBy = null;
-
-        await order.save();
-        return order;
-    },
-
-    confirmInvoice: async (ticketId, actorId) => {
+    confirmInvoice: async (ticketId, actorId, includeParkingFee) => {
         const order = await Order.findOne({ ticketId }).sort({ createdAt: -1 });
         if (!order) {
             throw new ErrorException(404, "Service order not found for this ticket");
@@ -272,6 +251,9 @@ const ticketService = {
 
         // tính tiền
         order.parkingFee = hours * pricePerHour;
+        if (includeParkingFee !== undefined) {
+            order.includeParkingFee = Boolean(includeParkingFee);
+        }
 
         order.invoiceStatus = "CONFIRMED";
         order.isPublicForGuest = true;
@@ -283,7 +265,7 @@ const ticketService = {
         return order;
     },
 
-    async confirmInvoicePayment(ticketId, actorId) {
+    async confirmInvoicePayment(ticketId, actorId, includeParkingFee) {
     const ticket = await Ticket.findById(ticketId);
     if (!ticket) {
         throw new ErrorException(404, "Ticket not found");
@@ -335,6 +317,9 @@ const ticketService = {
     // 💵 UPDATE EXISTING ORDER
     // ==============================
     if (order.invoiceStatus !== "CONFIRMED") {
+        if (includeParkingFee !== undefined) {
+            order.includeParkingFee = Boolean(includeParkingFee);
+        }
         order.invoiceStatus = "CONFIRMED";
         order.isPublicForGuest = true;
         order.invoiceConfirmedAt = new Date();
