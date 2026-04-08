@@ -9,7 +9,7 @@ const {
 } = require("../controller/serviceController");
 const { uploadServiceImages } = require("../middleware/uploadMiddleware");
 const { authToken, authRole } = require("../middleware/authMiddleware");
-
+const serviceService = require("../service/serviceService")
 const serviceRoute = express.Router();
 
 // serviceRoute.use(authToken)
