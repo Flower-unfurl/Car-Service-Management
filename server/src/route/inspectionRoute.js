@@ -1,13 +1,46 @@
 const express = require("express");
 const { getAllInspections, createInspection } = require("../controller/inspectionController");
+const Inspection = require("../schema/inspectionSchema");
+const Ticket = require("../schema/ticketSchema");
 const { authToken, authRole } = require("../middleware/authMiddleware");
 
 const inspectionRoute = express.Router();
 
 // inspectionRoute.use(authToken); // Yêu cầu đăng nhập
 
-inspectionRoute.get("/", getAllInspections);
-inspectionRoute.post("/:id", createInspection); // pass ticketId as id
+inspectionRoute.get("/", async (req, res, next) => {
+    try {
+        const inspections = await Inspection.find().populate("ticket").sort({ createdAt: -1 });
+        res.json({ data: inspections });
+    } catch (err) {
+        next(err);
+    }
+});
+
+inspectionRoute.post("/:id", async (req, res, next) => {
+    try {
+        const ticketId = req.params.id;
+        const userId = req.user?._id || null;
+
+        const inspection = await new Inspection({
+            ...req.body,
+            ticket: ticketId,
+            inspectedBy: userId
+        }).save();
+
+        await Ticket.findByIdAndUpdate(ticketId, {
+            inspection: inspection._id,
+            status: "IN_SERVICE"
+        });
+
+        res.status(201).json({
+            message: "Lưu thông tin đồng kiểm thành công",
+            data: inspection
+        });
+    } catch (err) {
+        next(err);
+    }
+});
 
 inspectionRoute.post("/inspection", authRole("CUSTOMER, EMPLOYEE"), async (req, res) => {
     try {
