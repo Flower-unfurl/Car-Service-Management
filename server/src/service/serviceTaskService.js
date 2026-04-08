@@ -24,20 +24,22 @@ const isStaffAssignedToTask = (task, staffId) => {
     }
 
     return Array.isArray(task.supportStaffIds)
-        ? task.supportStaffIds.some((supportId) => matchesUserId(supportId, staffId))
+        ? task.supportStaffIds.some((supportId) =>
+              matchesUserId(supportId, staffId),
+          )
         : false;
 };
 
 const buildStaffTaskQuery = (staffId) => ({
-    $or: [
-        { assignedStaffId: staffId },
-        { supportStaffIds: staffId }
-    ]
+    $or: [{ assignedStaffId: staffId }, { supportStaffIds: staffId }],
 });
 
 const withTaskDetails = (query) => {
     return query
-        .populate("serviceId", "serviceName description durationMinutes materials")
+        .populate(
+            "serviceId",
+            "serviceName description durationMinutes materials",
+        )
         .populate("assignedStaffId", "name email phone")
         .populate("supportStaffIds", "name email phone");
 };
@@ -49,7 +51,7 @@ const buildProgressFromTasks = (tasks = []) => {
             completed: 0,
             inProgress: 0,
             pending: 0,
-            progressPercentage: 0
+            progressPercentage: 0,
         };
     }
 
@@ -63,7 +65,7 @@ const buildProgressFromTasks = (tasks = []) => {
         completed,
         inProgress,
         pending,
-        progressPercentage
+        progressPercentage,
     };
 };
 
@@ -83,32 +85,43 @@ const assertTaskOwnershipForStaff = (task, actor) => {
     }
 
     if (!isStaffAssignedToTask(task, actor._id)) {
-        throw new ErrorException(403, "Staff can only operate tasks assigned to themselves (primary/support)");
+        throw new ErrorException(
+            403,
+            "Staff can only operate tasks assigned to themselves (primary/support)",
+        );
     }
 };
 
 const serviceTaskService = {
     // Get all tasks for a ticket
     getTasksByTicketId: async (ticketId) => {
-        return await withTaskDetails(ServiceTask.find({ ticketId })).sort({ stepOrder: 1 });
+        return await withTaskDetails(ServiceTask.find({ ticketId })).sort({
+            stepOrder: 1,
+        });
     },
 
     // Get single task by ID
     getTaskById: async (taskId) => {
         const task = await withTaskDetails(ServiceTask.findById(taskId));
-        
+
         if (!task) {
             throw new ErrorException(404, "Service task not found");
         }
-        
+
         return task;
     },
 
     // Get tasks assigned to a specific staff member
     getTasksByStaffId: async (staffId) => {
         return await ServiceTask.find(buildStaffTaskQuery(staffId))
-            .populate("ticketId", "licensePlate customerName customerPhone status")
-            .populate("serviceId", "serviceName description durationMinutes materials")
+            .populate(
+                "ticketId",
+                "licensePlate customerName customerPhone status",
+            )
+            .populate(
+                "serviceId",
+                "serviceName description durationMinutes materials",
+            )
             .populate("assignedStaffId", "name email phone")
             .populate("supportStaffIds", "name email phone")
             .sort({ stepOrder: 1 });
@@ -126,9 +139,12 @@ const serviceTaskService = {
         if (user.role === "STAFF") {
             return await ServiceTask.find({
                 ticketId,
-                ...buildStaffTaskQuery(user._id)
+                ...buildStaffTaskQuery(user._id),
             })
-                .populate("serviceId", "serviceName description durationMinutes materials")
+                .populate(
+                    "serviceId",
+                    "serviceName description durationMinutes materials",
+                )
                 .populate("assignedStaffId", "name email phone")
                 .populate("supportStaffIds", "name email phone")
                 .sort({ stepOrder: 1 });
@@ -168,9 +184,14 @@ const serviceTaskService = {
     },
 
     // Create tasks automatically when Order is created
-    createTasksFromOrder: async (orderId, { defaultAssignedStaffId = null } = {}) => {
+    createTasksFromOrder: async (
+        orderId,
+        { defaultAssignedStaffId = null } = {},
+        session = null,
+    ) => {
         const order = await Order.findById(orderId)
-            .populate("services.serviceId");
+            .populate("services.serviceId")
+            .session(session);
 
         if (!order) {
             throw new ErrorException(404, "Order not found");
@@ -180,48 +201,63 @@ const serviceTaskService = {
             throw new ErrorException(400, "Order has no services");
         }
 
-        const existingTasksCount = await ServiceTask.countDocuments({ ticketId: order.ticketId });
+        const existingTasksCount = await ServiceTask.countDocuments({
+            ticketId: order.ticketId,
+        }).session(session);
+
         if (existingTasksCount > 0) {
-            throw new ErrorException(409, "Service tasks already generated for this ticket");
+            throw new ErrorException(
+                409,
+                "Service tasks already generated for this ticket",
+            );
         }
 
         const tasks = [];
         let stepOrder = 1;
 
-        // Create tasks in order
         for (const orderService of order.services) {
             const service = orderService.serviceId;
-            if (!service?._id) {
-                continue;
-            }
-            
-            // Create task for this service
+
+            if (!service?._id) continue;
+
             const newTask = new ServiceTask({
                 ticketId: order.ticketId,
                 serviceId: service._id,
-                stepOrder: stepOrder,
+                stepOrder,
                 status: "PENDING",
-                assignedStaffId: defaultAssignedStaffId || null
+                assignedStaffId: defaultAssignedStaffId || null,
             });
 
-            const savedTask = await newTask.save();
+            const savedTask = await newTask.save({ session });
             tasks.push(savedTask);
             stepOrder++;
         }
 
         if (!tasks.length) {
-            throw new ErrorException(400, "Order has no valid services to create tasks");
+            throw new ErrorException(
+                400,
+                "Order has no valid services to create tasks",
+            );
         }
 
-        await ticketService.updateTicketStatus(order.ticketId, "IN_SERVICE");
+        // ⚠️ nhớ updateTicketStatus cũng phải support session
+        await ticketService.updateTicketStatus(
+            order.ticketId,
+            "IN_SERVICE",
+            session,
+        );
 
-        return await withTaskDetails(ServiceTask.find({ _id: { $in: tasks.map((task) => task._id) } })).sort({ stepOrder: 1 });
+        return await withTaskDetails(
+            ServiceTask.find({
+                _id: { $in: tasks.map((task) => task._id) },
+            }).session(session),
+        ).sort({ stepOrder: 1 });
     },
 
     // Validate if task can be started (check sequential order)
     canStartTask: async (taskId) => {
         const task = await ServiceTask.findById(taskId);
-        
+
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }
@@ -234,7 +270,7 @@ const serviceTaskService = {
         // Check if previous task is completed
         const previousTask = await ServiceTask.findOne({
             ticketId: task.ticketId,
-            stepOrder: task.stepOrder - 1
+            stepOrder: task.stepOrder - 1,
         });
 
         if (!previousTask) {
@@ -248,8 +284,8 @@ const serviceTaskService = {
                 previousTask: {
                     id: previousTask._id,
                     stepOrder: previousTask.stepOrder,
-                    status: previousTask.status
-                }
+                    status: previousTask.status,
+                },
             };
         }
 
@@ -261,7 +297,7 @@ const serviceTaskService = {
         assertAllowedTaskOperator(actor);
 
         const validation = await serviceTaskService.canStartTask(taskId);
-        
+
         if (!validation.canStart) {
             throw new ErrorException(403, validation.reason);
         }
@@ -297,8 +333,7 @@ const serviceTaskService = {
     completeTask: async (taskId, actor) => {
         assertAllowedTaskOperator(actor);
 
-        const task = await ServiceTask.findById(taskId)
-            .populate("serviceId");
+        const task = await ServiceTask.findById(taskId).populate("serviceId");
 
         if (!task) {
             throw new ErrorException(404, "Task not found");
@@ -311,7 +346,10 @@ const serviceTaskService = {
         }
 
         if (task.status === "PENDING") {
-            throw new ErrorException(400, "Task must be started before it can be completed");
+            throw new ErrorException(
+                400,
+                "Task must be started before it can be completed",
+            );
         }
 
         // Mark task as completed
@@ -326,9 +364,14 @@ const serviceTaskService = {
         const materialWarnings = [];
 
         // Support both `materials` and `materialUsages` defined on a service
-        const serviceMaterials = (task.serviceId && Array.isArray(task.serviceId.materials) && task.serviceId.materials.length)
-            ? task.serviceId.materials
-            : (task.serviceId && Array.isArray(task.serviceId.materialUsages) ? task.serviceId.materialUsages : []);
+        const serviceMaterials =
+            task.serviceId &&
+            Array.isArray(task.serviceId.materials) &&
+            task.serviceId.materials.length
+                ? task.serviceId.materials
+                : task.serviceId && Array.isArray(task.serviceId.materialUsages)
+                  ? task.serviceId.materialUsages
+                  : [];
 
         if (serviceMaterials && serviceMaterials.length > 0) {
             for (const materialReq of serviceMaterials) {
@@ -339,12 +382,14 @@ const serviceTaskService = {
                     if (!Number.isFinite(qty) || qty <= 0) {
                         materialWarnings.push({
                             materialId: materialReq.materialId,
-                            message: `Số lượng không hợp lệ cho vật tư ${materialReq.materialId}: ${rawQty}. Bỏ qua.`
+                            message: `Số lượng không hợp lệ cho vật tư ${materialReq.materialId}: ${rawQty}. Bỏ qua.`,
                         });
                         continue;
                     }
 
-                    const material = await materialService.getMaterialById(materialReq.materialId);
+                    const material = await materialService.getMaterialById(
+                        materialReq.materialId,
+                    );
 
                     if (material.stockQuantity < qty) {
                         materialWarnings.push({
@@ -352,7 +397,7 @@ const serviceTaskService = {
                             materialName: material.materialName,
                             requiredQuantity: qty,
                             availableQuantity: material.stockQuantity,
-                            message: `Thiếu vật tư "${material.materialName}": cần ${qty}, còn ${material.stockQuantity}. Task vẫn được đánh dấu COMPLETED.`
+                            message: `Thiếu vật tư "${material.materialName}": cần ${qty}, còn ${material.stockQuantity}. Task vẫn được đánh dấu COMPLETED.`,
                         });
                         continue;
                     }
@@ -360,7 +405,7 @@ const serviceTaskService = {
                     // Deduct stock (ensures save inside service)
                     const deductionResult = await materialService.deductStock(
                         materialReq.materialId,
-                        qty
+                        qty,
                     );
 
                     // Create material usage record (persist the actual quantity used)
@@ -369,7 +414,10 @@ const serviceTaskService = {
                         materialId: materialReq.materialId,
                         quantityUsed: qty,
                         date: new Date(),
-                        performedBy: (actor && actor._id) ? actor._id : task.assignedStaffId
+                        performedBy:
+                            actor && actor._id
+                                ? actor._id
+                                : task.assignedStaffId,
                     });
 
                     await materialUsage.save();
@@ -381,13 +429,14 @@ const serviceTaskService = {
                             materialId: materialReq.materialId,
                             materialName: deductionResult.material.materialName,
                             remainingStock: deductionResult.remainingStock,
-                            minAlertLevel: deductionResult.material.minAlertLevel
+                            minAlertLevel:
+                                deductionResult.material.minAlertLevel,
                         });
                     }
                 } catch (error) {
                     materialWarnings.push({
                         materialId: materialReq && materialReq.materialId,
-                        message: `Không thể trừ vật tư ${materialReq && materialReq.materialId}: ${error.message}. Task vẫn được đánh dấu COMPLETED.`
+                        message: `Không thể trừ vật tư ${materialReq && materialReq.materialId}: ${error.message}. Task vẫn được đánh dấu COMPLETED.`,
                     });
                 }
             }
@@ -398,11 +447,18 @@ const serviceTaskService = {
             .populate("assignedStaffId", "name email")
             .populate("supportStaffIds", "name email");
 
-        const ticketTasks = await ServiceTask.find({ ticketId: task.ticketId }).select("status");
-        const ticketReadyForPickup = ticketTasks.length > 0 && ticketTasks.every((row) => row.status === "COMPLETED");
+        const ticketTasks = await ServiceTask.find({
+            ticketId: task.ticketId,
+        }).select("status");
+        const ticketReadyForPickup =
+            ticketTasks.length > 0 &&
+            ticketTasks.every((row) => row.status === "COMPLETED");
 
         if (ticketReadyForPickup) {
-            await ticketService.updateTicketStatus(task.ticketId, "READY_FOR_PICKUP");
+            await ticketService.updateTicketStatus(
+                task.ticketId,
+                "READY_FOR_PICKUP",
+            );
         }
 
         return {
@@ -410,30 +466,36 @@ const serviceTaskService = {
             materialUsageRecords,
             lowStockMaterials,
             materialWarnings,
-            ticketReadyForPickup
+            ticketReadyForPickup,
         };
     },
 
     // Assign staff to a task
     assignStaff: async (taskId, staffId) => {
         const task = await ServiceTask.findById(taskId);
-        
+
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }
 
         if (task.status === "COMPLETED") {
-            throw new ErrorException(400, "Cannot assign staff to completed task");
+            throw new ErrorException(
+                400,
+                "Cannot assign staff to completed task",
+            );
         }
 
         const staff = await User.findById(staffId);
         if (!staff || staff.role !== "STAFF") {
-            throw new ErrorException(400, "Assigned user must be a STAFF account");
+            throw new ErrorException(
+                400,
+                "Assigned user must be a STAFF account",
+            );
         }
 
         task.assignedStaffId = staffId;
         task.supportStaffIds = (task.supportStaffIds || []).filter(
-            (supportId) => String(supportId) !== String(staffId)
+            (supportId) => String(supportId) !== String(staffId),
         );
         await task.save();
 
@@ -453,20 +515,32 @@ const serviceTaskService = {
         }
 
         if (task.status === "COMPLETED") {
-            throw new ErrorException(400, "Cannot add support staff to completed task");
+            throw new ErrorException(
+                400,
+                "Cannot add support staff to completed task",
+            );
         }
 
         if (actor.role === "STAFF" && !isStaffAssignedToTask(task, actor._id)) {
-            throw new ErrorException(403, "Staff can only add support staff to their own tasks");
+            throw new ErrorException(
+                403,
+                "Staff can only add support staff to their own tasks",
+            );
         }
 
         const supportStaff = await User.findById(supportStaffId);
         if (!supportStaff || supportStaff.role !== "STAFF") {
-            throw new ErrorException(400, "Support user must be a STAFF account");
+            throw new ErrorException(
+                400,
+                "Support user must be a STAFF account",
+            );
         }
 
         if (matchesUserId(task.assignedStaffId, supportStaffId)) {
-            throw new ErrorException(400, "Support staff is already the primary assignee");
+            throw new ErrorException(
+                400,
+                "Support staff is already the primary assignee",
+            );
         }
 
         if (isStaffAssignedToTask(task, supportStaffId)) {
@@ -476,7 +550,10 @@ const serviceTaskService = {
                 .populate("supportStaffIds", "name email phone");
         }
 
-        task.supportStaffIds = [...(task.supportStaffIds || []), supportStaffId];
+        task.supportStaffIds = [
+            ...(task.supportStaffIds || []),
+            supportStaffId,
+        ];
         await task.save();
 
         return await ServiceTask.findById(taskId)
@@ -487,20 +564,25 @@ const serviceTaskService = {
 
     // Recommend staff for a task: specialty first, then availability, then workload
     getRecommendedStaffForTask: async (taskId) => {
-        const task = await ServiceTask.findById(taskId).populate("serviceId", "serviceName specialty");
+        const task = await ServiceTask.findById(taskId).populate(
+            "serviceId",
+            "serviceName specialty",
+        );
 
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }
 
         const requiredSpecialty = task.serviceId?.specialty || null;
-        const allStaff = await User.find({ role: "STAFF" }).select("name email phone specialty isAvailable");
+        const allStaff = await User.find({ role: "STAFF" }).select(
+            "name email phone specialty isAvailable",
+        );
 
         if (allStaff.length === 0) {
             return {
                 requiredSpecialty,
                 recommendedStaff: [],
-                alternativeStaff: []
+                alternativeStaff: [],
             };
         }
 
@@ -509,25 +591,26 @@ const serviceTaskService = {
             {
                 $match: {
                     status: "IN_PROGRESS",
-                    assignedStaffId: { $in: staffIds }
-                }
+                    assignedStaffId: { $in: staffIds },
+                },
             },
             {
                 $group: {
                     _id: "$assignedStaffId",
-                    activeTasks: { $sum: 1 }
-                }
-            }
+                    activeTasks: { $sum: 1 },
+                },
+            },
         ]);
 
         const workloadMap = new Map(
-            workloadRows.map((row) => [String(row._id), row.activeTasks])
+            workloadRows.map((row) => [String(row._id), row.activeTasks]),
         );
 
         const ranked = allStaff
             .map((staff) => {
                 const workload = workloadMap.get(String(staff._id)) || 0;
-                const specialtyMatch = requiredSpecialty && staff.specialty === requiredSpecialty;
+                const specialtyMatch =
+                    requiredSpecialty && staff.specialty === requiredSpecialty;
                 const available = Boolean(staff.isAvailable) && workload === 0;
 
                 let score = 0;
@@ -544,26 +627,31 @@ const serviceTaskService = {
                     isAvailable: available,
                     activeTasks: workload,
                     specialtyMatch: Boolean(specialtyMatch),
-                    score
+                    score,
                 };
             })
             .sort((a, b) => {
                 if (b.score !== a.score) return b.score - a.score;
-                if (a.activeTasks !== b.activeTasks) return a.activeTasks - b.activeTasks;
+                if (a.activeTasks !== b.activeTasks)
+                    return a.activeTasks - b.activeTasks;
                 return (a.name || "").localeCompare(b.name || "");
             });
 
         return {
             requiredSpecialty,
-            recommendedStaff: ranked.filter((s) => s.specialtyMatch && s.isAvailable),
-            alternativeStaff: ranked.filter((s) => !(s.specialtyMatch && s.isAvailable))
+            recommendedStaff: ranked.filter(
+                (s) => s.specialtyMatch && s.isAvailable,
+            ),
+            alternativeStaff: ranked.filter(
+                (s) => !(s.specialtyMatch && s.isAvailable),
+            ),
         };
     },
 
     // Get material usage history for a ticket
     getMaterialUsageByTicketId: async (ticketId) => {
         const tasks = await ServiceTask.find({ ticketId });
-        const taskIds = tasks.map(t => t._id);
+        const taskIds = tasks.map((t) => t._id);
 
         return await MaterialUsage.find({ taskId: { $in: taskIds } })
             .populate("materialId", "materialName unit")
@@ -577,13 +665,15 @@ const serviceTaskService = {
         }
 
         if (user.role === "ADMIN") {
-            return await serviceTaskService.getMaterialUsageByTicketId(ticketId);
+            return await serviceTaskService.getMaterialUsageByTicketId(
+                ticketId,
+            );
         }
 
         if (user.role === "STAFF") {
             const tasks = await ServiceTask.find({
                 ticketId,
-                ...buildStaffTaskQuery(user._id)
+                ...buildStaffTaskQuery(user._id),
             });
             const taskIds = tasks.map((task) => task._id);
 
@@ -628,7 +718,7 @@ const serviceTaskService = {
         if (user.role === "STAFF") {
             const tasks = await ServiceTask.find({
                 ticketId,
-                ...buildStaffTaskQuery(user._id)
+                ...buildStaffTaskQuery(user._id),
             });
             return buildProgressFromTasks(tasks);
         }
@@ -647,12 +737,10 @@ const serviceTaskService = {
 
     // Update task (generic update)
     updateTask: async (taskId, updateData) => {
-        const task = await ServiceTask.findByIdAndUpdate(
-            taskId,
-            updateData,
-            { new: true, runValidators: true }
-        )
-            .populate("serviceId assignedStaffId supportStaffIds");
+        const task = await ServiceTask.findByIdAndUpdate(taskId, updateData, {
+            new: true,
+            runValidators: true,
+        }).populate("serviceId assignedStaffId supportStaffIds");
 
         if (!task) {
             throw new ErrorException(404, "Task not found");
@@ -664,13 +752,13 @@ const serviceTaskService = {
     // Delete task
     deleteTask: async (taskId) => {
         const task = await ServiceTask.findByIdAndDelete(taskId);
-        
+
         if (!task) {
             throw new ErrorException(404, "Task not found");
         }
 
         return task;
-    }
+    },
 };
 
 module.exports = serviceTaskService;
